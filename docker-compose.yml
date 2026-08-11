@@ -1,0 +1,47 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: techng-lms-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      # Keeps host .env MONGODB_URI (localhost) for local npm runs.
+      # For Docker, defaults to the compose mongo service; override anytime:
+      #   DOCKER_MONGODB_URI=mongodb+srv://... docker compose up -d
+      MONGODB_URI: ${DOCKER_MONGODB_URI:-mongodb://mongo:27017/techng_lms}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - techng-lms
+
+  mongo:
+    image: mongo:7
+    container_name: techng-lms-mongo
+    restart: unless-stopped
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - techng-lms
+
+volumes:
+  mongo_data:
+
+networks:
+  techng-lms:
+    driver: bridge
