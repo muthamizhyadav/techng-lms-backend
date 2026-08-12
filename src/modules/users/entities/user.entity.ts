@@ -1,17 +1,19 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { UserRole, UserStatus } from '@shared/enums/role.enum';
+import { generateUuid } from '@common/utils/uuid.util';
 
 export type UserDocument = HydratedDocument<User>;
 
 @Schema({
+  _id: false,
   timestamps: true,
   collection: 'users',
   toJSON: {
     virtuals: true,
     versionKey: false,
     transform: (_doc, ret: Record<string, unknown>) => {
-      ret.id = (ret._id as { toString(): string } | undefined)?.toString();
+      ret.id = ret._id as string;
       delete ret._id;
       delete ret.password;
       delete ret.refreshTokenHash;
@@ -26,6 +28,9 @@ export type UserDocument = HydratedDocument<User>;
   },
 })
 export class User {
+  @Prop({ type: String, default: generateUuid, unique: true })
+  _id: string;
+
   id: string;
 
   @Prop({ required: true, unique: true, lowercase: true, trim: true })

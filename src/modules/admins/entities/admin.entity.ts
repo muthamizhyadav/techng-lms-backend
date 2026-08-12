@@ -1,17 +1,19 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 import { AdminRole, AdminStatus } from '@shared/enums/user-status.enum';
+import { generateUuid } from '@common/utils/uuid.util';
 
 export type AdminDocument = HydratedDocument<Admin>;
 
 @Schema({
+  _id: false,
   timestamps: true,
   collection: 'admins',
   toJSON: {
     virtuals: true,
     versionKey: false,
     transform: (_doc, ret: Record<string, unknown>) => {
-      ret.id = (ret._id as Types.ObjectId | undefined)?.toString();
+      ret.id = ret._id as string;
       delete ret._id;
       delete ret.password;
       delete ret.refreshTokenHash;
@@ -26,6 +28,9 @@ export type AdminDocument = HydratedDocument<Admin>;
   },
 })
 export class Admin {
+  @Prop({ type: String, default: generateUuid, unique: true })
+  _id: string;
+
   id: string;
 
   @Prop({ required: true, unique: true, lowercase: true, trim: true })
@@ -64,13 +69,13 @@ export class Admin {
   @Prop({ default: null })
   bio: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Admin', default: null })
-  createdByAdminId: Types.ObjectId | string;
+  @Prop({ type: String, ref: 'Admin', default: null })
+  createdByAdminId: string;
 
   createdBy?: Admin;
 
-  @Prop({ type: Types.ObjectId, ref: 'Admin', default: null })
-  updatedByAdminId: Types.ObjectId | string;
+  @Prop({ type: String, ref: 'Admin', default: null })
+  updatedByAdminId: string;
 
   @Prop({ type: Number, default: 0 })
   loginCount: number;

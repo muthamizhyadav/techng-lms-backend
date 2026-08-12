@@ -14,6 +14,7 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
   ForbiddenException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -29,7 +30,6 @@ import { JwtAdminGuard } from '@common/guards/jwt-admin.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentAdmin } from '@common/decorators/current-admin.decorator';
-import { ParseObjectIdPipe } from '@common/pipes/parse-object-id.pipe';
 import { Admin } from './entities/admin.entity';
 import { AdminRole } from '@shared/enums/user-status.enum';
 import {
@@ -87,10 +87,10 @@ export class AdminsController {
   @UseGuards(JwtAdminGuard)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({ summary: 'Get admin by ID' })
-  @ApiParam({ name: 'id', description: 'Admin ObjectId', example: '507f1f77bcf86cd799439011' })
+  @ApiParam({ name: 'id', description: 'Admin UUID', example: '0f8fad5b-d9cb-469f-a165-70867728950e' })
   @ApiResponse({ status: 200, description: 'Admin found', type: AdminResponseDto })
   @ApiResponse({ status: 404, description: 'Admin not found' })
-  async findOne(@Param('id', ParseObjectIdPipe) id: string) {
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminsService.findOne(id);
   }
 
@@ -130,12 +130,12 @@ export class AdminsController {
     summary: 'Update admin profile',
     description: 'Admins can update their own profile. Super Admin can update any admin.',
   })
-  @ApiParam({ name: 'id', description: 'Admin ObjectId' })
+  @ApiParam({ name: 'id', description: 'Admin UUID' })
   @ApiBody({ type: UpdateAdminDto })
   @ApiResponse({ status: 200, description: 'Profile updated', type: AdminResponseDto })
   @ApiResponse({ status: 403, description: 'Can only update your own profile or need Super Admin access' })
   async update(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAdminDto,
     @CurrentAdmin() currentAdmin: Admin,
   ) {
@@ -157,12 +157,12 @@ export class AdminsController {
     summary: 'Update admin status (Super Admin only)',
     description: 'Activate, suspend, or deactivate an admin account',
   })
-  @ApiParam({ name: 'id', description: 'Admin ObjectId' })
+  @ApiParam({ name: 'id', description: 'Admin UUID' })
   @ApiBody({ type: UpdateAdminStatusDto })
   @ApiResponse({ status: 200, description: 'Status updated' })
   @ApiResponse({ status: 403, description: 'Cannot change own status or last Super Admin' })
   async updateStatus(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAdminStatusDto,
     @CurrentAdmin() currentAdmin: Admin,
   ) {
@@ -181,12 +181,12 @@ export class AdminsController {
     summary: 'Update admin role & permissions (Super Admin only)',
     description: 'Change role and custom permissions. Cannot demote last Super Admin.',
   })
-  @ApiParam({ name: 'id', description: 'Admin ObjectId' })
+  @ApiParam({ name: 'id', description: 'Admin UUID' })
   @ApiBody({ type: UpdateAdminRoleDto })
   @ApiResponse({ status: 200, description: 'Role updated' })
   @ApiResponse({ status: 403, description: 'Cannot change own role or last Super Admin' })
   async updateRole(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAdminRoleDto,
     @CurrentAdmin() currentAdmin: Admin,
   ) {
@@ -205,13 +205,13 @@ export class AdminsController {
     summary: 'Change admin password (Self only)',
     description: 'Admins can only change their own password',
   })
-  @ApiParam({ name: 'id', description: 'Admin ObjectId' })
+  @ApiParam({ name: 'id', description: 'Admin UUID' })
   @ApiBody({ type: UpdateAdminPasswordDto })
   @ApiResponse({ status: 200, description: 'Password changed successfully' })
   @ApiResponse({ status: 403, description: 'Can only change your own password' })
   @ApiResponse({ status: 400, description: 'Current password is incorrect' })
   async updatePassword(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAdminPasswordDto,
     @CurrentAdmin() currentAdmin: Admin,
   ) {
@@ -235,11 +235,11 @@ export class AdminsController {
     summary: 'Delete admin (Super Admin only)',
     description: 'Soft deletes an admin account. Cannot delete self or last Super Admin.',
   })
-  @ApiParam({ name: 'id', description: 'Admin ObjectId' })
+  @ApiParam({ name: 'id', description: 'Admin UUID' })
   @ApiResponse({ status: 200, description: 'Admin deleted' })
   @ApiResponse({ status: 403, description: 'Cannot delete self or last Super Admin' })
   async remove(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @CurrentAdmin() currentAdmin: Admin,
   ) {
     await this.adminsService.remove(id, currentAdmin.id);

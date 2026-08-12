@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { AdminsModule } from './modules/admins/admins.module';
+import { CoursesModule } from './modules/courses/courses.module';
 import { ConfigModule } from '@nestjs/config';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
@@ -21,6 +22,7 @@ import { DatabaseModule } from './database/database.module';
     AuthModule,
     UsersModule,
     AdminsModule,
+    CoursesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

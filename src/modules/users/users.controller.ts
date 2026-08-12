@@ -12,6 +12,7 @@ import {
   UseGuards,
   DefaultValuePipe,
   ParseIntPipe,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,7 +27,6 @@ import { UsersService } from './users.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { JwtAdminGuard } from '@common/guards/jwt-admin.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
-import { ParseObjectIdPipe } from '@common/pipes/parse-object-id.pipe';
 import { User } from './entities/user.entity';
 import { UserStatus } from '@shared/enums/role.enum';
 import { CreateUserDto, UpdatePasswordDto, UpdateUserDto, UserResponseDto } from './dto/user.dto';
@@ -72,10 +72,10 @@ export class UsersController {
   @UseGuards(JwtAdminGuard)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({ summary: 'Get student by ID (Admin only)' })
-  @ApiParam({ name: 'id', description: 'Student ObjectId', example: '507f1f77bcf86cd799439011' })
+  @ApiParam({ name: 'id', description: 'Student UUID', example: '0f8fad5b-d9cb-469f-a165-70867728950e' })
   @ApiResponse({ status: 200, description: 'Student found', type: UserResponseDto })
   @ApiResponse({ status: 404, description: 'Student not found' })
-  async findOne(@Param('id', ParseObjectIdPipe) id: string) {
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
   }
 
@@ -100,7 +100,7 @@ export class UsersController {
     summary: 'Update student status (Admin only)',
     description: 'Activate, suspend, or deactivate a student account',
   })
-  @ApiParam({ name: 'id', description: 'Student ObjectId' })
+  @ApiParam({ name: 'id', description: 'Student UUID' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -112,7 +112,7 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Status updated' })
   @ApiResponse({ status: 404, description: 'Student not found' })
   async updateStatus(
-    @Param('id', ParseObjectIdPipe) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body('status') status: UserStatus,
   ) {
     await this.usersService.updateStatus(id, status);

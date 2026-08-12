@@ -44,7 +44,7 @@ export class AuthController {
         accessToken: 'eyJhbGciOiJIUzI1NiIs...',
         refreshToken: 'eyJhbGciOiJIUzI1NiIs...',
         user: {
-          id: '507f1f77bcf86cd799439011',
+          id: '0f8fad5b-d9cb-469f-a165-70867728950e',
           email: 'rahul@email.com',
           firstName: 'Rahul',
           lastName: 'Kumar',
@@ -75,7 +75,7 @@ export class AuthController {
         accessToken: 'eyJhbGciOiJIUzI1NiIs...',
         refreshToken: 'eyJhbGciOiJIUzI1NiIs...',
         user: {
-          id: '507f1f77bcf86cd799439011',
+          id: '0f8fad5b-d9cb-469f-a165-70867728950e',
           email: 'rahul@email.com',
           firstName: 'Rahul',
           lastName: 'Kumar',

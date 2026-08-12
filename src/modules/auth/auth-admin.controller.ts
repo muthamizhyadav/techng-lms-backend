@@ -52,7 +52,7 @@ export class AuthAdminController {
         accessToken: 'eyJhbGciOiJIUzI1NiIs...',
         refreshToken: 'eyJhbGciOiJIUzI1NiIs...',
         admin: {
-          id: '507f1f77bcf86cd799439011',
+          id: '0f8fad5b-d9cb-469f-a165-70867728950e',
           email: 'super@techng.in',
           firstName: 'Super',
           lastName: 'Admin',
@@ -89,7 +89,7 @@ export class AuthAdminController {
         accessToken: 'eyJhbGciOiJIUzI1NiIs...',
         refreshToken: 'eyJhbGciOiJIUzI1NiIs...',
         admin: {
-          id: '507f1f77bcf86cd799439011',
+          id: '0f8fad5b-d9cb-469f-a165-70867728950e',
           email: 'admin@techng.in',
           firstName: 'Vikram',
           lastName: 'Rao',
@@ -125,7 +125,7 @@ export class AuthAdminController {
         accessToken: 'eyJhbGciOiJIUzI1NiIs...',
         refreshToken: 'eyJhbGciOiJIUzI1NiIs...',
         admin: {
-          id: '507f1f77bcf86cd799439011',
+          id: '0f8fad5b-d9cb-469f-a165-70867728950e',
           email: 'admin@techng.in',
           firstName: 'Vikram',
           lastName: 'Rao',
