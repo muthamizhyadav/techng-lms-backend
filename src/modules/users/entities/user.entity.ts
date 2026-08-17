@@ -13,7 +13,7 @@ export type UserDocument = HydratedDocument<User>;
     virtuals: true,
     versionKey: false,
     transform: (_doc, ret: Record<string, unknown>) => {
-      ret.id = ret._id as string;
+      ret.id = ret._id;
       delete ret._id;
       delete ret.password;
       delete ret.refreshTokenHash;

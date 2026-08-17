@@ -10,22 +10,35 @@ import {
   Matches,
   IsBoolean,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  OmitType,
+  PartialType,
+} from '@nestjs/swagger';
 import { AdminRole, AdminStatus } from '@shared/enums/user-status.enum';
 import { Exclude, Expose } from 'class-transformer';
 
 export class CreateAdminDto {
-  @ApiProperty({ example: 'admin@techng.in', description: 'Admin email address' })
+  @ApiProperty({
+    example: 'admin@techng.in',
+    description: 'Admin email address',
+  })
   @IsEmail({}, { message: 'Please provide a valid email address' })
   @MaxLength(255)
   email: string;
 
-  @ApiProperty({ example: 'Admin@123', description: 'Password - min 8 chars, 1 uppercase, 1 number, 1 special char' })
+  @ApiProperty({
+    example: 'Admin@123',
+    description:
+      'Password - min 8 chars, 1 uppercase, 1 number, 1 special char',
+  })
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
   @MaxLength(50)
   @Matches(/^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/, {
-    message: 'Password must contain at least 1 uppercase letter, 1 number, and 1 special character',
+    message:
+      'Password must contain at least 1 uppercase letter, 1 number, and 1 special character',
   })
   password: string;
 
@@ -33,28 +46,44 @@ export class CreateAdminDto {
   @IsString()
   @MinLength(2, { message: 'First name must be at least 2 characters' })
   @MaxLength(100)
-  @Matches(/^[a-zA-Z\s]+$/, { message: 'First name can only contain letters and spaces' })
+  @Matches(/^[a-zA-Z\s]+$/, {
+    message: 'First name can only contain letters and spaces',
+  })
   firstName: string;
 
   @ApiProperty({ example: 'Rao', description: 'Last name' })
   @IsString()
   @MinLength(2, { message: 'Last name must be at least 2 characters' })
   @MaxLength(100)
-  @Matches(/^[a-zA-Z\s]+$/, { message: 'Last name can only contain letters and spaces' })
+  @Matches(/^[a-zA-Z\s]+$/, {
+    message: 'Last name can only contain letters and spaces',
+  })
   lastName: string;
 
-  @ApiPropertyOptional({ example: '+91 9876543210', description: 'Phone number with country code' })
+  @ApiPropertyOptional({
+    example: '+91 9876543210',
+    description: 'Phone number with country code',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(20)
-  @Matches(/^\+?[0-9\s-]{10,20}$/, { message: 'Please provide a valid phone number' })
+  @Matches(/^\+?[0-9\s-]{10,20}$/, {
+    message: 'Please provide a valid phone number',
+  })
   phone?: string;
 
   @ApiProperty({ example: 'admin', description: 'Admin role', enum: AdminRole })
-  @IsEnum(AdminRole, { message: 'Role must be admin, super_admin, support, or finance' })
+  @IsEnum(AdminRole, {
+    message: 'Role must be admin, super_admin, support, or finance',
+  })
   role: AdminRole;
 
-  @ApiPropertyOptional({ example: 'active', description: 'Account status', enum: AdminStatus, default: AdminStatus.ACTIVE })
+  @ApiPropertyOptional({
+    example: 'active',
+    description: 'Account status',
+    enum: AdminStatus,
+    default: AdminStatus.ACTIVE,
+  })
   @IsOptional()
   @IsEnum(AdminStatus)
   status?: AdminStatus = AdminStatus.ACTIVE;
@@ -76,24 +105,38 @@ export class CreateAdminDto {
   @MaxLength(100)
   department?: string;
 
-  @ApiPropertyOptional({ example: 'Course Manager', description: 'Job designation' })
+  @ApiPropertyOptional({
+    example: 'Course Manager',
+    description: 'Job designation',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   designation?: string;
 
-  @ApiPropertyOptional({ example: 'Manages course content and batch assignments', description: 'Admin bio / responsibilities' })
+  @ApiPropertyOptional({
+    example: 'Manages course content and batch assignments',
+    description: 'Admin bio / responsibilities',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(1000)
   bio?: string;
 
-  @ApiPropertyOptional({ example: true, description: 'Enable email notifications', default: true })
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Enable email notifications',
+    default: true,
+  })
   @IsOptional()
   @IsBoolean()
   emailNotifications?: boolean = true;
 
-  @ApiPropertyOptional({ example: true, description: 'Enable SMS notifications', default: true })
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Enable SMS notifications',
+    default: true,
+  })
   @IsOptional()
   @IsBoolean()
   smsNotifications?: boolean = true;
@@ -103,9 +146,11 @@ export class UpdateAdminDto extends PartialType(
   OmitType(CreateAdminDto, ['password', 'email'] as const),
 ) {}
 
-
 export class AdminLoginDto {
-  @ApiProperty({ example: 'admin@techng.in', description: 'Admin email address' })
+  @ApiProperty({
+    example: 'admin@techng.in',
+    description: 'Admin email address',
+  })
   @IsEmail({}, { message: 'Please provide a valid email address' })
   email: string;
 
@@ -118,7 +163,6 @@ export class AdminLoginDto {
 
 export class AdminRegisterDto extends CreateAdminDto {}
 
-
 export class UpdateAdminPasswordDto {
   @ApiProperty({ example: 'OldPass@123', description: 'Current password' })
   @IsString()
@@ -130,13 +174,11 @@ export class UpdateAdminPasswordDto {
   @MinLength(8, { message: 'New password must be at least 8 characters long' })
   @MaxLength(50)
   @Matches(/^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/, {
-    message: 'Password must contain at least 1 uppercase letter, 1 number, and 1 special character',
+    message:
+      'Password must contain at least 1 uppercase letter, 1 number, and 1 special character',
   })
   newPassword: string;
 }
-
-
-
 
 @Exclude()
 export class AdminResponseDto {
@@ -202,11 +244,18 @@ export class AdminResponseDto {
 }
 
 export class UpdateAdminStatusDto {
-  @ApiProperty({ example: 'suspended', description: 'New status', enum: AdminStatus })
+  @ApiProperty({
+    example: 'suspended',
+    description: 'New status',
+    enum: AdminStatus,
+  })
   @IsEnum(AdminStatus)
   status: AdminStatus;
 
-  @ApiPropertyOptional({ example: 'Violated company policy', description: 'Reason for status change' })
+  @ApiPropertyOptional({
+    example: 'Violated company policy',
+    description: 'Reason for status change',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)

@@ -10,7 +10,11 @@ import { ConfigService } from '@nestjs/config';
 import { User, UserDocument } from './entities/user.entity';
 import { PasswordUtil } from '@common/utils/password.util';
 import { UserStatus } from '@shared/enums/role.enum';
-import { CreateUserDto, UpdatePasswordDto, UpdateUserDto } from './dto/user.dto';
+import {
+  CreateUserDto,
+  UpdatePasswordDto,
+  UpdateUserDto,
+} from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
@@ -53,7 +57,7 @@ export class UsersService {
       isProfileComplete: profileCompletionPercentage >= 80,
     });
 
-    return savedUser.toJSON() as User;
+    return savedUser.toJSON();
   }
 
   async findAll(
@@ -113,7 +117,7 @@ export class UsersService {
     user.isProfileComplete = user.profileCompletionPercentage >= 80;
 
     const savedUser = await user.save();
-    return savedUser.toJSON() as User;
+    return savedUser.toJSON();
   }
 
   async updatePassword(
@@ -202,9 +206,7 @@ export class UsersService {
     await this.userModel.findByIdAndUpdate(userId, { status });
   }
 
-  async getProfileCompletion(
-    userId: string,
-  ): Promise<{
+  async getProfileCompletion(userId: string): Promise<{
     percentage: number;
     isComplete: boolean;
     missingFields: string[];

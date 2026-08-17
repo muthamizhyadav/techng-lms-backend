@@ -11,4 +11,3 @@ export enum UserStatus {
   SUSPENDED = 'suspended',
   PENDING = 'pending',
 }
-

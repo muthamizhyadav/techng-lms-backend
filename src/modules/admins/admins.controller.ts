@@ -1,4 +1,3 @@
-
 import {
   Controller,
   Get,
@@ -87,8 +86,16 @@ export class AdminsController {
   @UseGuards(JwtAdminGuard)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({ summary: 'Get admin by ID' })
-  @ApiParam({ name: 'id', description: 'Admin UUID', example: '0f8fad5b-d9cb-469f-a165-70867728950e' })
-  @ApiResponse({ status: 200, description: 'Admin found', type: AdminResponseDto })
+  @ApiParam({
+    name: 'id',
+    description: 'Admin UUID',
+    example: '0f8fad5b-d9cb-469f-a165-70867728950e',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Admin found',
+    type: AdminResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Admin not found' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminsService.findOne(id);
@@ -108,8 +115,15 @@ export class AdminsController {
     description: 'Creates a new admin account with role and permissions',
   })
   @ApiBody({ type: CreateAdminDto })
-  @ApiResponse({ status: 201, description: 'Admin created', type: AdminResponseDto })
-  @ApiResponse({ status: 403, description: 'Only Super Admin can create admins' })
+  @ApiResponse({
+    status: 201,
+    description: 'Admin created',
+    type: AdminResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Only Super Admin can create admins',
+  })
   @ApiResponse({ status: 409, description: 'Email already registered' })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   async create(
@@ -128,12 +142,20 @@ export class AdminsController {
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({
     summary: 'Update admin profile',
-    description: 'Admins can update their own profile. Super Admin can update any admin.',
+    description:
+      'Admins can update their own profile. Super Admin can update any admin.',
   })
   @ApiParam({ name: 'id', description: 'Admin UUID' })
   @ApiBody({ type: UpdateAdminDto })
-  @ApiResponse({ status: 200, description: 'Profile updated', type: AdminResponseDto })
-  @ApiResponse({ status: 403, description: 'Can only update your own profile or need Super Admin access' })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile updated',
+    type: AdminResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Can only update your own profile or need Super Admin access',
+  })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAdminDto,
@@ -160,7 +182,10 @@ export class AdminsController {
   @ApiParam({ name: 'id', description: 'Admin UUID' })
   @ApiBody({ type: UpdateAdminStatusDto })
   @ApiResponse({ status: 200, description: 'Status updated' })
-  @ApiResponse({ status: 403, description: 'Cannot change own status or last Super Admin' })
+  @ApiResponse({
+    status: 403,
+    description: 'Cannot change own status or last Super Admin',
+  })
   async updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAdminStatusDto,
@@ -179,12 +204,16 @@ export class AdminsController {
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({
     summary: 'Update admin role & permissions (Super Admin only)',
-    description: 'Change role and custom permissions. Cannot demote last Super Admin.',
+    description:
+      'Change role and custom permissions. Cannot demote last Super Admin.',
   })
   @ApiParam({ name: 'id', description: 'Admin UUID' })
   @ApiBody({ type: UpdateAdminRoleDto })
   @ApiResponse({ status: 200, description: 'Role updated' })
-  @ApiResponse({ status: 403, description: 'Cannot change own role or last Super Admin' })
+  @ApiResponse({
+    status: 403,
+    description: 'Cannot change own role or last Super Admin',
+  })
   async updateRole(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAdminRoleDto,
@@ -208,7 +237,10 @@ export class AdminsController {
   @ApiParam({ name: 'id', description: 'Admin UUID' })
   @ApiBody({ type: UpdateAdminPasswordDto })
   @ApiResponse({ status: 200, description: 'Password changed successfully' })
-  @ApiResponse({ status: 403, description: 'Can only change your own password' })
+  @ApiResponse({
+    status: 403,
+    description: 'Can only change your own password',
+  })
   @ApiResponse({ status: 400, description: 'Current password is incorrect' })
   async updatePassword(
     @Param('id', ParseUUIDPipe) id: string,
@@ -233,11 +265,15 @@ export class AdminsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Delete admin (Super Admin only)',
-    description: 'Soft deletes an admin account. Cannot delete self or last Super Admin.',
+    description:
+      'Soft deletes an admin account. Cannot delete self or last Super Admin.',
   })
   @ApiParam({ name: 'id', description: 'Admin UUID' })
   @ApiResponse({ status: 200, description: 'Admin deleted' })
-  @ApiResponse({ status: 403, description: 'Cannot delete self or last Super Admin' })
+  @ApiResponse({
+    status: 403,
+    description: 'Cannot delete self or last Super Admin',
+  })
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentAdmin() currentAdmin: Admin,
@@ -254,7 +290,11 @@ export class AdminsController {
   @UseGuards(JwtAdminGuard)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({ summary: 'Get my admin profile' })
-  @ApiResponse({ status: 200, description: 'Profile retrieved', type: AdminResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile retrieved',
+    type: AdminResponseDto,
+  })
   async getMyProfile(@CurrentAdmin() admin: Admin) {
     return this.adminsService.findOne(admin.id);
   }

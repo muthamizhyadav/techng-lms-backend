@@ -1,12 +1,20 @@
-import { CreateUserDto } from "@/modules/users/dto/user.dto";
-import { IsEmail, IsString, MinLength, MaxLength, IsNotEmpty } from 'class-validator';
+import { CreateUserDto } from '@/modules/users/dto/user.dto';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  MaxLength,
+  IsNotEmpty,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class StudentRegisterDto extends CreateUserDto {}
 
-
 export class StudentLoginDto {
-  @ApiProperty({ example: 'rahul.kumar@email.com', description: 'Registered email address' })
+  @ApiProperty({
+    example: 'rahul.kumar@email.com',
+    description: 'Registered email address',
+  })
   @IsEmail({}, { message: 'Please provide a valid email address' })
   email: string;
 
@@ -18,7 +26,10 @@ export class StudentLoginDto {
 }
 
 export class RefreshTokenDto {
-  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIs...', description: 'Refresh token from login response' })
+  @ApiProperty({
+    example: 'eyJhbGciOiJIUzI1NiIs...',
+    description: 'Refresh token from login response',
+  })
   @IsString()
   @IsNotEmpty({ message: 'Refresh token is required' })
   refreshToken: string;

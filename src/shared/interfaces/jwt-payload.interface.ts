@@ -1,5 +1,5 @@
 export interface StudentJwtPayload {
-  sub: string;     
+  sub: string;
   email: string;
   role: string;
   type: 'student';
@@ -8,7 +8,7 @@ export interface StudentJwtPayload {
 }
 
 export interface AdminJwtPayload {
-  sub: string;     
+  sub: string;
   email: string;
   role: string;
   type: 'admin';

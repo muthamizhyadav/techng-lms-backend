@@ -7,7 +7,10 @@ import { StudentJwtPayload } from '@shared/interfaces/jwt-payload.interface';
 import { User } from '@modules/users/entities/user.entity';
 
 @Injectable()
-export class StudentJwtStrategy extends PassportStrategy(Strategy, 'student-jwt') {
+export class StudentJwtStrategy extends PassportStrategy(
+  Strategy,
+  'student-jwt',
+) {
   constructor(
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
@@ -20,7 +23,6 @@ export class StudentJwtStrategy extends PassportStrategy(Strategy, 'student-jwt'
   }
 
   async validate(payload: StudentJwtPayload): Promise<User> {
-
     if (payload.type !== 'student') {
       throw new UnauthorizedException('Invalid token type for student access');
     }
@@ -28,7 +30,9 @@ export class StudentJwtStrategy extends PassportStrategy(Strategy, 'student-jwt'
     const user = await this.usersService.findOne(payload.sub);
 
     if (!user.isActive()) {
-      throw new UnauthorizedException('Your account has been suspended or deactivated');
+      throw new UnauthorizedException(
+        'Your account has been suspended or deactivated',
+      );
     }
 
     return user;

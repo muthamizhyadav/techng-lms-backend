@@ -113,6 +113,15 @@ export class CreateCourseDto {
   @IsString()
   @MaxLength(500)
   thumbnail?: string;
+
+  @ApiPropertyOptional({
+    example: 'https://cdn.example.com/course.mp4',
+    description: 'Course promo / intro video URL',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  videoUrl?: string;
 }
 
 export class UpdateCourseDto extends PartialType(CreateCourseDto) {}
@@ -166,6 +175,9 @@ export class CourseResponseDto {
 
   @Expose()
   thumbnail: string;
+
+  @Expose()
+  videoUrl: string;
 
   @Expose()
   createdAt: Date;

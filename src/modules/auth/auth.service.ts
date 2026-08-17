@@ -12,11 +12,18 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '@modules/users/users.service';
 import { AdminsService } from '@modules/admins/admins.service';
 import { PasswordUtil } from '@common/utils/password.util';
-import { StudentJwtPayload, AdminJwtPayload } from '@shared/interfaces/jwt-payload.interface';
+import {
+  StudentJwtPayload,
+  AdminJwtPayload,
+} from '@shared/interfaces/jwt-payload.interface';
 import { User } from '@modules/users/entities/user.entity';
 import { Admin } from '@modules/admins/entities/admin.entity';
 import { AdminRole } from '@shared/enums/user-status.enum';
-import { RefreshTokenDto, StudentLoginDto, StudentRegisterDto } from './dto/auth.dto';
+import {
+  RefreshTokenDto,
+  StudentLoginDto,
+  StudentRegisterDto,
+} from './dto/auth.dto';
 import { AdminLoginDto, AdminRegisterDto } from '../admins/dto/admin.dto';
 
 @Injectable()
@@ -28,7 +35,9 @@ export class AuthService {
     private readonly adminsService: AdminsService,
   ) {}
 
-  async studentRegister(dto: StudentRegisterDto): Promise<{ accessToken: string; refreshToken: string; user: User }> {
+  async studentRegister(
+    dto: StudentRegisterDto,
+  ): Promise<{ accessToken: string; refreshToken: string; user: User }> {
     const user = await this.usersService.create(dto);
 
     const tokens = await this.generateStudentTokens({
@@ -46,17 +55,24 @@ export class AuthService {
     return { ...tokens, user };
   }
 
-  async studentLogin(dto: StudentLoginDto): Promise<{ accessToken: string; refreshToken: string; user: User }> {
+  async studentLogin(
+    dto: StudentLoginDto,
+  ): Promise<{ accessToken: string; refreshToken: string; user: User }> {
     const user = await this.usersService.findByEmailWithPassword(dto.email);
     if (!user) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
     if (!user.isActive()) {
-      throw new ForbiddenException('Your account is not active. Please verify your email or contact support.');
+      throw new ForbiddenException(
+        'Your account is not active. Please verify your email or contact support.',
+      );
     }
 
-    const isPasswordValid = await PasswordUtil.compare(dto.password, user.password);
+    const isPasswordValid = await PasswordUtil.compare(
+      dto.password,
+      user.password,
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
@@ -77,7 +93,9 @@ export class AuthService {
     return { ...tokens, user };
   }
 
-  async studentRefresh(dto: RefreshTokenDto): Promise<{ accessToken: string; refreshToken: string }> {
+  async studentRefresh(
+    dto: RefreshTokenDto,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     let payload: StudentJwtPayload;
     try {
       payload = this.jwtService.verify(dto.refreshToken, {
@@ -91,7 +109,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid token type');
     }
 
-    const isValid = await this.usersService.verifyRefreshToken(payload.sub, dto.refreshToken);
+    const isValid = await this.usersService.verifyRefreshToken(
+      payload.sub,
+      dto.refreshToken,
+    );
     if (!isValid) {
       throw new UnauthorizedException('Refresh token revoked or expired');
     }
@@ -103,7 +124,10 @@ export class AuthService {
       type: 'student',
     });
 
-    await this.usersService.updateRefreshToken(payload.sub, tokens.refreshToken);
+    await this.usersService.updateRefreshToken(
+      payload.sub,
+      tokens.refreshToken,
+    );
 
     return tokens;
   }
@@ -116,16 +140,23 @@ export class AuthService {
     return this.usersService.findOne(userId);
   }
 
-  async adminRegister(dto: AdminRegisterDto, createdByAdminId?: string): Promise<{ accessToken: string; refreshToken: string; admin: Admin }> {
+  async adminRegister(
+    dto: AdminRegisterDto,
+    createdByAdminId?: string,
+  ): Promise<{ accessToken: string; refreshToken: string; admin: Admin }> {
     if (createdByAdminId) {
       const creator = await this.adminsService.findOne(createdByAdminId);
       if (!creator.isSuperAdmin()) {
-        throw new ForbiddenException('Only Super Admin can create new admin accounts');
+        throw new ForbiddenException(
+          'Only Super Admin can create new admin accounts',
+        );
       }
     } else {
       const adminCount = await this.adminsService.countAll();
       if (adminCount > 0) {
-        throw new ForbiddenException('Admin registration is restricted. Contact Super Admin.');
+        throw new ForbiddenException(
+          'Admin registration is restricted. Contact Super Admin.',
+        );
       }
       dto.role = AdminRole.SUPER_ADMIN;
     }
@@ -147,17 +178,25 @@ export class AuthService {
     return { ...tokens, admin };
   }
 
-  async adminLogin(dto: AdminLoginDto, ipAddress?: string): Promise<{ accessToken: string; refreshToken: string; admin: Admin }> {
+  async adminLogin(
+    dto: AdminLoginDto,
+    ipAddress?: string,
+  ): Promise<{ accessToken: string; refreshToken: string; admin: Admin }> {
     const admin = await this.adminsService.findByEmailWithPassword(dto.email);
     if (!admin) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
     if (!admin.isActive()) {
-      throw new ForbiddenException('Your admin account is suspended. Contact Super Admin.');
+      throw new ForbiddenException(
+        'Your admin account is suspended. Contact Super Admin.',
+      );
     }
 
-    const isPasswordValid = await PasswordUtil.compare(dto.password, admin.password);
+    const isPasswordValid = await PasswordUtil.compare(
+      dto.password,
+      admin.password,
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
@@ -179,7 +218,9 @@ export class AuthService {
     return { ...tokens, admin };
   }
 
-  async adminRefresh(dto: RefreshTokenDto): Promise<{ accessToken: string; refreshToken: string }> {
+  async adminRefresh(
+    dto: RefreshTokenDto,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     let payload: AdminJwtPayload;
     try {
       payload = this.jwtService.verify(dto.refreshToken, {
@@ -193,7 +234,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid token type');
     }
 
-    const isValid = await this.adminsService.verifyRefreshToken(payload.sub, dto.refreshToken);
+    const isValid = await this.adminsService.verifyRefreshToken(
+      payload.sub,
+      dto.refreshToken,
+    );
     if (!isValid) {
       throw new UnauthorizedException('Refresh token revoked or expired');
     }
@@ -205,7 +249,10 @@ export class AuthService {
       type: 'admin',
     });
 
-    await this.adminsService.updateRefreshToken(payload.sub, tokens.refreshToken);
+    await this.adminsService.updateRefreshToken(
+      payload.sub,
+      tokens.refreshToken,
+    );
 
     return tokens;
   }
@@ -218,7 +265,9 @@ export class AuthService {
     return this.adminsService.findOne(adminId);
   }
 
-  private async generateStudentTokens(payload: StudentJwtPayload): Promise<{ accessToken: string; refreshToken: string }> {
+  private async generateStudentTokens(
+    payload: StudentJwtPayload,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get('jwt.student.secret'),
       expiresIn: this.configService.get('jwt.student.expiresIn'),
@@ -232,7 +281,9 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private async generateAdminTokens(payload: AdminJwtPayload): Promise<{ accessToken: string; refreshToken: string }> {
+  private async generateAdminTokens(
+    payload: AdminJwtPayload,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get('jwt.admin.secret'),
       expiresIn: this.configService.get('jwt.admin.expiresIn'),

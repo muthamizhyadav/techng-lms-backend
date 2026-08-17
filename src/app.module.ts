@@ -9,13 +9,15 @@ import { ConfigModule } from '@nestjs/config';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
+import storageConfig from './config/storage.config';
 import { DatabaseModule } from './database/database.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, jwtConfig],
+      load: [appConfig, databaseConfig, jwtConfig, storageConfig],
       envFilePath: ['.env'],
     }),
     DatabaseModule,
@@ -23,6 +25,7 @@ import { DatabaseModule } from './database/database.module';
     UsersModule,
     AdminsModule,
     CoursesModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

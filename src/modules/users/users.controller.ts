@@ -29,7 +29,12 @@ import { JwtAdminGuard } from '@common/guards/jwt-admin.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { User } from './entities/user.entity';
 import { UserStatus } from '@shared/enums/role.enum';
-import { CreateUserDto, UpdatePasswordDto, UpdateUserDto, UserResponseDto } from './dto/user.dto';
+import {
+  CreateUserDto,
+  UpdatePasswordDto,
+  UpdateUserDto,
+  UserResponseDto,
+} from './dto/user.dto';
 
 @ApiTags('👨‍🎓 Students / Users')
 @Controller('users')
@@ -45,7 +50,12 @@ export class UsersController {
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiQuery({ name: 'status', required: false, enum: UserStatus, example: 'active' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: UserStatus,
+    example: 'active',
+  })
   @ApiResponse({
     status: 200,
     description: 'List of students retrieved',
@@ -67,18 +77,24 @@ export class UsersController {
     return this.usersService.findAll(page, limit);
   }
 
-
   @Get(':id')
   @UseGuards(JwtAdminGuard)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({ summary: 'Get student by ID (Admin only)' })
-  @ApiParam({ name: 'id', description: 'Student UUID', example: '0f8fad5b-d9cb-469f-a165-70867728950e' })
-  @ApiResponse({ status: 200, description: 'Student found', type: UserResponseDto })
+  @ApiParam({
+    name: 'id',
+    description: 'Student UUID',
+    example: '0f8fad5b-d9cb-469f-a165-70867728950e',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Student found',
+    type: UserResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Student not found' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
   }
-
 
   @Post()
   @UseGuards(JwtAdminGuard)
@@ -86,12 +102,15 @@ export class UsersController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create student account (Admin only)' })
   @ApiBody({ type: CreateUserDto })
-  @ApiResponse({ status: 201, description: 'Student created', type: UserResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Student created',
+    type: UserResponseDto,
+  })
   @ApiResponse({ status: 409, description: 'Email already exists' })
   async create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
   }
-
 
   @Patch(':id/status')
   @UseGuards(JwtAdminGuard)
@@ -105,7 +124,11 @@ export class UsersController {
     schema: {
       type: 'object',
       properties: {
-        status: { type: 'string', enum: ['active', 'inactive', 'suspended', 'pending'], example: 'active' },
+        status: {
+          type: 'string',
+          enum: ['active', 'inactive', 'suspended', 'pending'],
+          example: 'active',
+        },
       },
     },
   })
@@ -119,23 +142,29 @@ export class UsersController {
     return { message: `Student status updated to ${status}` };
   }
 
-
   @Get('me/profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('student-access-token')
   @ApiOperation({ summary: 'Get my profile (Student)' })
-  @ApiResponse({ status: 200, description: 'Profile retrieved', type: UserResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile retrieved',
+    type: UserResponseDto,
+  })
   async getMyProfile(@CurrentUser() user: User) {
     return this.usersService.findOne(user.id);
   }
-
 
   @Patch('me/profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('student-access-token')
   @ApiOperation({ summary: 'Update my profile (Student)' })
   @ApiBody({ type: UpdateUserDto })
-  @ApiResponse({ status: 200, description: 'Profile updated', type: UserResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile updated',
+    type: UserResponseDto,
+  })
   @ApiResponse({ status: 409, description: 'Phone number already in use' })
   async updateMyProfile(
     @CurrentUser('id') userId: string,
@@ -143,7 +172,6 @@ export class UsersController {
   ) {
     return this.usersService.update(userId, dto);
   }
-
 
   @Patch('me/password')
   @UseGuards(JwtAuthGuard)
@@ -180,7 +208,8 @@ export class UsersController {
   @ApiBearerAuth('student-access-token')
   @ApiOperation({
     summary: 'Get my profile completion percentage',
-    description: 'Returns completion %, isComplete flag, and missing fields list',
+    description:
+      'Returns completion %, isComplete flag, and missing fields list',
   })
   @ApiResponse({
     status: 200,
@@ -202,7 +231,8 @@ export class UsersController {
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({
     summary: 'Get student statistics (Admin only)',
-    description: 'Total, active, inactive, pending, suspended counts for dashboard',
+    description:
+      'Total, active, inactive, pending, suspended counts for dashboard',
   })
   @ApiResponse({
     status: 200,

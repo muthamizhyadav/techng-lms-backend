@@ -68,6 +68,9 @@ export class Course {
   @Prop({ trim: true, default: null })
   thumbnail: string;
 
+  @Prop({ trim: true, default: null })
+  videoUrl: string;
+
   @Prop({ type: String, ref: 'Admin', default: null })
   createdByAdminId: string;
 

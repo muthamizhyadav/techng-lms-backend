@@ -25,7 +25,11 @@ import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentAdmin } from '@common/decorators/current-admin.decorator';
 import { Admin } from '@modules/admins/entities/admin.entity';
 import { AdminRole } from '@shared/enums/user-status.enum';
-import { AdminLoginDto, AdminRegisterDto, AdminResponseDto } from '@modules/admins/dto/admin.dto';
+import {
+  AdminLoginDto,
+  AdminRegisterDto,
+  AdminResponseDto,
+} from '@modules/admins/dto/admin.dto';
 import { RefreshTokenDto } from './dto/auth.dto';
 
 @ApiTags('🛡️ Admin Auth')
@@ -41,7 +45,8 @@ export class AuthAdminController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'First-time Super Admin setup',
-    description: 'Creates the first Super Admin without authentication. Only works when zero admins exist. Remove/disable after initial setup.',
+    description:
+      'Creates the first Super Admin without authentication. Only works when zero admins exist. Remove/disable after initial setup.',
   })
   @ApiBody({ type: AdminRegisterDto })
   @ApiResponse({
@@ -61,7 +66,10 @@ export class AuthAdminController {
       },
     },
   })
-  @ApiResponse({ status: 403, description: 'Setup already completed — admins already exist' })
+  @ApiResponse({
+    status: 403,
+    description: 'Setup already completed — admins already exist',
+  })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   async setup(@Body() dto: AdminRegisterDto) {
     return this.authService.adminRegister(dto, null);
@@ -98,8 +106,14 @@ export class AuthAdminController {
       },
     },
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized — invalid or missing token' })
-  @ApiResponse({ status: 403, description: 'Only Super Admin can create admins' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized — invalid or missing token',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Only Super Admin can create admins',
+  })
   @ApiResponse({ status: 409, description: 'Email already registered' })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   async register(

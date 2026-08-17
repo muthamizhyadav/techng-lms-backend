@@ -70,7 +70,7 @@ export class AdminsService {
       loginCount: 0,
     });
 
-    return savedAdmin.toJSON() as Admin;
+    return savedAdmin.toJSON();
   }
 
   async findAll(
@@ -145,7 +145,7 @@ export class AdminsService {
       updatedByAdminId: currentAdminId,
     });
     const updatedAdmin = await admin.save();
-    return updatedAdmin.toJSON() as Admin;
+    return updatedAdmin.toJSON();
   }
 
   async updatePassword(

@@ -19,7 +19,11 @@ import {
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
-import { RefreshTokenDto, StudentLoginDto, StudentRegisterDto } from './dto/auth.dto';
+import {
+  RefreshTokenDto,
+  StudentLoginDto,
+  StudentRegisterDto,
+} from './dto/auth.dto';
 import { User } from '@modules/users/entities/user.entity';
 import { UserResponseDto } from '../users/dto/user.dto';
 
