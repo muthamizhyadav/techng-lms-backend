@@ -9,14 +9,17 @@ services:
     restart: unless-stopped
 
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-3001}:3000"
 
     env_file:
       - .env
 
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     networks:
       - techng-lms
