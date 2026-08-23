@@ -304,11 +304,10 @@ export class AdminsController {
   // ═══════════════════════════════════════════════════
 
   @Get('stats/overview')
-  @UseGuards(JwtAdminGuard, RolesGuard)
-  @Roles(AdminRole.SUPER_ADMIN)
+  @UseGuards(JwtAdminGuard)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({
-    summary: 'Get admin statistics (Super Admin only)',
+    summary: 'Get admin statistics',
     description: 'Total admins, active count, role distribution, recent logins',
   })
   @ApiResponse({
