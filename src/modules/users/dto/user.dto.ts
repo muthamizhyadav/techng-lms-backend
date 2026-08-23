@@ -53,14 +53,14 @@ export class CreateUserDto {
   })
   firstName: string;
 
-  @ApiProperty({ example: 'Kumar', description: 'Last name' })
+  @ApiPropertyOptional({ example: 'Kumar', description: 'Last name' })
+  @IsOptional()
   @IsString()
-  @MinLength(2, { message: 'Last name must be at least 2 characters' })
   @MaxLength(100)
   @Matches(/^[a-zA-Z\s]+$/, {
     message: 'Last name can only contain letters and spaces',
   })
-  lastName: string;
+  lastName?: string;
 
   @ApiPropertyOptional({
     example: '+91 9876543210',

@@ -42,7 +42,7 @@ export class Admin {
   @Prop({ required: true, trim: true })
   firstName: string;
 
-  @Prop({ required: true, trim: true })
+  @Prop({ required: false, trim: true, default: null })
   lastName: string;
 
   @Prop({ trim: true, default: null })
@@ -117,7 +117,7 @@ export class Admin {
   updatedAt: Date;
 
   get fullName(): string {
-    return `${this.firstName} ${this.lastName}`;
+    return this.lastName ? `${this.firstName} ${this.lastName}` : this.firstName;
   }
 
   isSuperAdmin(): boolean {
@@ -160,7 +160,7 @@ AdminSchema.virtual('createdBy', {
 });
 
 AdminSchema.virtual('fullName').get(function (this: AdminDocument) {
-  return `${this.firstName} ${this.lastName}`;
+  return this.lastName ? `${this.firstName} ${this.lastName}` : this.firstName;
 });
 
 AdminSchema.methods.isSuperAdmin = function (this: AdminDocument): boolean {

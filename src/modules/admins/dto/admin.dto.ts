@@ -51,14 +51,14 @@ export class CreateAdminDto {
   })
   firstName: string;
 
-  @ApiProperty({ example: 'Rao', description: 'Last name' })
+  @ApiPropertyOptional({ example: 'Rao', description: 'Last name' })
+  @IsOptional()
   @IsString()
-  @MinLength(2, { message: 'Last name must be at least 2 characters' })
   @MaxLength(100)
   @Matches(/^[a-zA-Z\s]+$/, {
     message: 'Last name can only contain letters and spaces',
   })
-  lastName: string;
+  lastName?: string;
 
   @ApiPropertyOptional({
     example: '+91 9876543210',

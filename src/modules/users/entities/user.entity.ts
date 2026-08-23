@@ -42,7 +42,7 @@ export class User {
   @Prop({ required: true, trim: true })
   firstName: string;
 
-  @Prop({ required: true, trim: true })
+  @Prop({ required: false, trim: true, default: null })
   lastName: string;
 
   @Prop({ trim: true, default: null })
@@ -145,7 +145,7 @@ export class User {
   updatedAt: Date;
 
   get fullName(): string {
-    return `${this.firstName} ${this.lastName}`;
+    return this.lastName ? `${this.firstName} ${this.lastName}` : this.firstName;
   }
 
   isActive(): boolean {
@@ -162,7 +162,7 @@ export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.index({ phone: 1 });
 
 UserSchema.virtual('fullName').get(function (this: UserDocument) {
-  return `${this.firstName} ${this.lastName}`;
+  return this.lastName ? `${this.firstName} ${this.lastName}` : this.firstName;
 });
 
 UserSchema.methods.isActive = function (this: UserDocument): boolean {
