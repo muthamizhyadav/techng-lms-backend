@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
@@ -7,6 +7,7 @@ import {
   EnrollmentStatus,
 } from './entities/enrollment.entity';
 import { Course, CourseDocument } from '../courses/entities/course.entity';
+import { UpdateProgressDto } from './dto/update-progress.dto';
 
 @Injectable()
 export class EnrollmentsService {
@@ -94,5 +95,132 @@ export class EnrollmentsService {
         };
       })
       .filter(Boolean);
+  }
+
+  async getCurriculum(userId: string, enrollmentId: string) {
+    const enrollment = await this.enrollmentModel.findOne({
+      _id: enrollmentId,
+      userId,
+    });
+    if (!enrollment) {
+      throw new NotFoundException('Enrollment not found');
+    }
+
+    const course = await this.courseModel.findOne({
+      _id: enrollment.courseId,
+      deletedAt: null,
+    });
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    const lessonProgressObj: Record<string, any> = {};
+    if (enrollment.lessonProgress) {
+      enrollment.lessonProgress.forEach((value, key) => {
+        lessonProgressObj[key] = value;
+      });
+    }
+
+    return {
+      enrollmentId: enrollment._id.toString(),
+      courseId: course._id.toString(),
+      courseTitle: course.title,
+      modules: course.modules || [],
+      lessonProgress: lessonProgressObj,
+      currentLessonId: enrollment.currentLessonId || null,
+      overallProgress: enrollment.progress,
+    };
+  }
+
+  async updateProgress(userId: string, enrollmentId: string, dto: UpdateProgressDto) {
+    const enrollment = await this.enrollmentModel.findOne({
+      _id: enrollmentId,
+      userId,
+    });
+    if (!enrollment) {
+      throw new NotFoundException('Enrollment not found');
+    }
+
+    const updateFields: Record<string, any> = {};
+    updateFields[`lessonProgress.${dto.lessonId}.watchTime`] = dto.watchTime;
+    updateFields[`lessonProgress.${dto.lessonId}.lastPosition`] = dto.lastPosition;
+    updateFields.currentLessonId = dto.lessonId;
+
+    await this.enrollmentModel.updateOne({ _id: enrollmentId }, { $set: updateFields });
+
+    return { success: true };
+  }
+
+  async completeLesson(userId: string, enrollmentId: string, lessonId: string) {
+    const enrollment = await this.enrollmentModel.findOne({
+      _id: enrollmentId,
+      userId,
+    });
+    if (!enrollment) {
+      throw new NotFoundException('Enrollment not found');
+    }
+
+    const course = await this.courseModel.findOne({
+      _id: enrollment.courseId,
+      deletedAt: null,
+    });
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    const updateFields: Record<string, any> = {};
+    updateFields[`lessonProgress.${lessonId}.completed`] = true;
+    updateFields[`lessonProgress.${lessonId}.completedAt`] = new Date();
+
+    const allLessonIds: string[] = [];
+    for (const mod of course.modules || []) {
+      for (const lesson of mod.lessons || []) {
+        allLessonIds.push(lesson._id?.toString() || '');
+      }
+    }
+
+    const progress = await this.enrollmentModel.findOne({ _id: enrollmentId });
+    const currentCompleted = new Set<string>();
+    if (progress?.lessonProgress) {
+      progress.lessonProgress.forEach((val: any, key: string) => {
+        if (val.completed) currentCompleted.add(key);
+      });
+    }
+    currentCompleted.add(lessonId);
+
+    const totalLessons = allLessonIds.length || 1;
+    const completedCount = currentCompleted.size;
+    const overallProgress = Math.min(Math.round((completedCount / totalLessons) * 100), 100);
+
+    updateFields.progress = overallProgress;
+
+    if (overallProgress >= 100) {
+      updateFields.status = EnrollmentStatus.COMPLETED;
+    }
+
+    await this.enrollmentModel.updateOne({ _id: enrollmentId }, { $set: updateFields });
+
+    let nextLessonId: string | null = null;
+    let foundCurrent = false;
+    for (const mod of course.modules || []) {
+      for (const lesson of mod.lessons || []) {
+        const lid = lesson._id?.toString() || '';
+        if (foundCurrent && !currentCompleted.has(lid)) {
+          nextLessonId = lid;
+          break;
+        }
+        if (lid === lessonId) {
+          foundCurrent = true;
+        }
+      }
+      if (nextLessonId) break;
+    }
+
+    return {
+      success: true,
+      progress: overallProgress,
+      nextLessonId,
+      completed: overallProgress >= 100,
+    };
   }
 }

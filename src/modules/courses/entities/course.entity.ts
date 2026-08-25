@@ -71,6 +71,38 @@ export class Course {
   @Prop({ trim: true, default: null })
   videoUrl: string;
 
+  @Prop({
+    type: [
+      {
+        title: { type: String, required: true },
+        order: { type: Number, required: true },
+        lessons: [
+          {
+            title: { type: String, required: true },
+            videoUrl: { type: String, default: '' },
+            duration: { type: Number, default: 0 },
+            order: { type: Number, required: true },
+            type: { type: String, enum: ['video', 'quiz', 'document'], default: 'video' },
+          },
+        ],
+      },
+    ],
+    default: [],
+  })
+  modules: Array<{
+    _id?: string;
+    title: string;
+    order: number;
+    lessons: Array<{
+      _id?: string;
+      title: string;
+      videoUrl: string;
+      duration: number;
+      order: number;
+      type: 'video' | 'quiz' | 'document';
+    }>;
+  }>;
+
   @Prop({ type: String, ref: 'Admin', default: null })
   createdByAdminId: string;
 

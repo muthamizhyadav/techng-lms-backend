@@ -8,10 +8,63 @@ import {
   Min,
   IsArray,
   ArrayUnique,
+  ValidateNested,
+  IsNumber,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 import { CourseStatus } from '../entities/course.entity';
+
+export class ModuleLessonDto {
+  @ApiProperty({ example: 'Introduction to Java 21' })
+  @IsString()
+  @MinLength(3)
+  @MaxLength(200)
+  title: string;
+
+  @ApiPropertyOptional({ example: 'https://r2.dev/lesson-1.mp4' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  videoUrl?: string;
+
+  @ApiPropertyOptional({ example: 720, description: 'Duration in seconds' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  duration?: number;
+
+  @ApiProperty({ example: 1 })
+  @IsInt()
+  @Min(1)
+  order: number;
+
+  @ApiPropertyOptional({ enum: ['video', 'quiz', 'document'], default: 'video' })
+  @IsOptional()
+  @IsEnum(['video', 'quiz', 'document'])
+  type?: 'video' | 'quiz' | 'document';
+}
+
+export class ModuleDto {
+  @ApiProperty({ example: 'Module 1: Java 21 Core Fundamentals' })
+  @IsString()
+  @MinLength(3)
+  @MaxLength(200)
+  title: string;
+
+  @ApiProperty({ example: 1 })
+  @IsInt()
+  @Min(1)
+  order: number;
+
+  @ApiPropertyOptional({ type: [ModuleLessonDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ModuleLessonDto)
+  lessons?: ModuleLessonDto[];
+}
 
 export class CreateCourseDto {
   @ApiProperty({
@@ -122,6 +175,13 @@ export class CreateCourseDto {
   @IsString()
   @MaxLength(500)
   videoUrl?: string;
+
+  @ApiPropertyOptional({ type: [ModuleDto], description: 'Course curriculum modules with lessons' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ModuleDto)
+  modules?: ModuleDto[];
 }
 
 export class UpdateCourseDto extends PartialType(CreateCourseDto) {}

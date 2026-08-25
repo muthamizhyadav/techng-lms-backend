@@ -45,6 +45,26 @@ export class Enrollment {
   @Prop({ type: Number, default: 0, min: 0, max: 100 })
   progress: number;
 
+  @Prop({
+    type: Map,
+    of: {
+      completed: { type: Boolean, default: false },
+      watchTime: { type: Number, default: 0 },
+      lastPosition: { type: Number, default: 0 },
+      completedAt: { type: Date, default: null },
+    },
+    default: {},
+  })
+  lessonProgress: Map<string, {
+    completed: boolean;
+    watchTime: number;
+    lastPosition: number;
+    completedAt: Date | null;
+  }>;
+
+  @Prop({ type: String, default: null })
+  currentLessonId: string;
+
   @Prop({ type: Date, default: () => new Date() })
   enrolledAt: Date;
 
