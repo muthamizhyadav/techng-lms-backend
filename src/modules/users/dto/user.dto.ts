@@ -174,12 +174,11 @@ export class CreateUserDto {
   @MaxLength(100)
   jobRole?: string;
 
-  @ApiPropertyOptional({ example: 2, description: 'Years of experience' })
-  @IsOptional()
+  @ApiProperty({ example: 2, description: 'Years of experience (0 = Fresher)' })
   @IsInt()
   @Min(0)
   @Max(50)
-  experienceYears?: number;
+  experienceYears: number;
 
   @ApiPropertyOptional({
     example: 'en',
