@@ -52,7 +52,7 @@ export class UsersService {
     const savedUser = await this.userModel.create({
       ...createUserDto,
       password: hashedPassword,
-      status: UserStatus.PENDING,
+      status: UserStatus.ACTIVE,
       profileCompletionPercentage,
       isProfileComplete: profileCompletionPercentage >= 80,
     });

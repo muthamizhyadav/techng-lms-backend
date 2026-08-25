@@ -5,11 +5,15 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { AdminsModule } from './modules/admins/admins.module';
 import { CoursesModule } from './modules/courses/courses.module';
+import { CartModule } from './modules/cart/cart.module';
+import { EnrollmentsModule } from './modules/enrollments/enrollments.module';
+import { OrdersModule } from './modules/orders/orders.module';
 import { ConfigModule } from '@nestjs/config';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import storageConfig from './config/storage.config';
+import razorpayConfig from './config/razorpay.config';
 import { DatabaseModule } from './database/database.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 
@@ -17,7 +21,13 @@ import { UploadsModule } from './modules/uploads/uploads.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, jwtConfig, storageConfig],
+      load: [
+        appConfig,
+        databaseConfig,
+        jwtConfig,
+        storageConfig,
+        razorpayConfig,
+      ],
       envFilePath: ['.env'],
     }),
     DatabaseModule,
@@ -26,6 +36,9 @@ import { UploadsModule } from './modules/uploads/uploads.module';
     AdminsModule,
     CoursesModule,
     UploadsModule,
+    CartModule,
+    EnrollmentsModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
