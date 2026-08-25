@@ -117,7 +117,8 @@ export class OrdersService {
     }
 
     const totalAmount = orderItems.reduce((sum, item) => sum + item.price, 0);
-    const amountInPaise = Math.round(totalAmount * 100);
+    const finalAmount = totalAmount < 1 ? 1 : totalAmount;
+    const amountInPaise = Math.round(finalAmount * 100);
 
     const keyId = this.configService.get<string>('razorpay.keyId') || '';
     const keySecret = this.configService.get<string>('razorpay.keySecret') || '';
@@ -150,7 +151,7 @@ export class OrdersService {
     const order = await this.orderModel.create({
       userId,
       items: orderItems,
-      totalAmount,
+      totalAmount: finalAmount,
       currency,
       razorpayOrderId,
       status: OrderStatus.CREATED,
@@ -159,7 +160,7 @@ export class OrdersService {
     return {
       orderId: order._id.toString(),
       razorpayOrderId,
-      amount: totalAmount,
+      amount: finalAmount,
       amountInPaise,
       currency,
       keyId,

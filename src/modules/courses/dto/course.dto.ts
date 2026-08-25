@@ -99,11 +99,11 @@ export class CreateCourseDto {
   @ArrayUnique()
   skills?: string[];
 
-  @ApiPropertyOptional({ example: 4999, description: 'Course price in INR' })
+  @ApiPropertyOptional({ example: 4999, description: 'Course price in INR (minimum ₹1)' })
   @IsOptional()
   @IsInt()
-  @Min(0)
-  price?: number = 0;
+  @Min(1, { message: 'Course price must be at least ₹1' })
+  price?: number = 1;
 
   @ApiPropertyOptional({
     example: 'https://cdn.example.com/course.jpg',

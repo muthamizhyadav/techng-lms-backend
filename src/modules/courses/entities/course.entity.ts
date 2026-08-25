@@ -62,7 +62,7 @@ export class Course {
   @Prop({ type: [String], default: [] })
   skills: string[];
 
-  @Prop({ type: Number, default: 0, min: 0 })
+  @Prop({ type: Number, default: 1, min: 1 })
   price: number;
 
   @Prop({ trim: true, default: null })
