@@ -19,6 +19,7 @@ export type UserDocument = HydratedDocument<User>;
       delete ret.refreshTokenHash;
       delete ret.emailVerificationToken;
       delete ret.phoneOtp;
+      delete ret.googleId;
       return ret;
     },
   },
@@ -36,8 +37,11 @@ export class User {
   @Prop({ required: true, unique: true, lowercase: true, trim: true })
   email: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   password: string;
+
+  @Prop({ default: null })
+  googleId: string;
 
   @Prop({ required: true, trim: true })
   firstName: string;

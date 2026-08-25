@@ -140,6 +140,35 @@ export class AuthService {
     return this.usersService.findOne(userId);
   }
 
+  async googleLogin(profile: {
+    googleId: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+  }): Promise<{ accessToken: string; refreshToken: string; user: User }> {
+    let user = await this.usersService.findByGoogleId(profile.googleId);
+
+    if (!user) {
+      user = (await this.usersService.createGoogleUser(profile)) as any;
+    }
+
+    const tokens = await this.generateStudentTokens({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      type: 'student',
+    });
+
+    await this.usersService.updateRefreshToken(user.id, tokens.refreshToken);
+    await this.usersService.updateLastLogin(user.id);
+
+    delete (user as any).password;
+    delete (user as any).refreshTokenHash;
+
+    return { ...tokens, user };
+  }
+
   async adminRegister(
     dto: AdminRegisterDto,
     createdByAdminId?: string,

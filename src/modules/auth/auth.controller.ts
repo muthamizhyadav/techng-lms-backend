@@ -8,6 +8,8 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Req,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,11 +28,17 @@ import {
 } from './dto/auth.dto';
 import { User } from '@modules/users/entities/user.entity';
 import { UserResponseDto } from '../users/dto/user.dto';
+import { AuthGuard } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
+import { Request, Response } from 'express';
 
 @ApiTags('🎓 Student Auth')
 @Controller('auth/student')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   // ═══════════════════════════════════════════════════
   // ║  STUDENT REGISTER                               ║
@@ -150,5 +158,30 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getProfile(@CurrentUser() user: User) {
     return this.authService.getStudentProfile(user.id);
+  }
+
+  // ═══════════════════════════════════════════════════
+  // ║  GOOGLE OAUTH                                   ║
+  // ═══════════════════════════════════════════════════
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Initiate Google OAuth login' })
+  async googleAuth() {
+    // Guard redirects to Google
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Google OAuth callback' })
+  async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
+    const user = req.user as any;
+    const result = await this.authService.googleLogin(user);
+    const frontendUrl = this.configService.get<string>('google.frontendUrl');
+    const params = new URLSearchParams({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
+    return res.redirect(`${frontendUrl}/auth/callback?${params.toString()}`);
   }
 }

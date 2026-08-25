@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { StudentJwtStrategy } from './strategies/student-jwt.strategy';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
 import { UsersModule } from '@modules/users/users.module';
 import { AdminsModule } from '@modules/admins/admins.module';
 import { AuthAdminController } from './auth-admin.controller';
@@ -27,7 +28,7 @@ import { AuthAdminController } from './auth-admin.controller';
     AdminsModule,
   ],
   controllers: [AuthController, AuthAdminController],
-  providers: [AuthService, StudentJwtStrategy, AdminJwtStrategy],
+  providers: [AuthService, StudentJwtStrategy, AdminJwtStrategy, GoogleStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

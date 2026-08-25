@@ -14,6 +14,7 @@ import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import storageConfig from './config/storage.config';
 import razorpayConfig from './config/razorpay.config';
+import googleConfig from './config/google.config';
 import { DatabaseModule } from './database/database.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 
@@ -27,6 +28,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
         jwtConfig,
         storageConfig,
         razorpayConfig,
+        googleConfig,
       ],
       envFilePath: ['.env'],
     }),

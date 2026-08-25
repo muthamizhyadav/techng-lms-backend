@@ -99,6 +99,50 @@ export class UsersService {
     return this.userModel.findOne({ email, deletedAt: null });
   }
 
+  async findByGoogleId(googleId: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ googleId, deletedAt: null });
+  }
+
+  async createGoogleUser(data: {
+    googleId: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+  }): Promise<User> {
+    const existingUser = await this.findByEmail(data.email);
+    if (existingUser) {
+      existingUser.googleId = data.googleId;
+      if (data.avatar && !existingUser.avatar) {
+        existingUser.avatar = data.avatar;
+      }
+      existingUser.emailVerified = true;
+      if (existingUser.status !== UserStatus.ACTIVE) {
+        existingUser.status = UserStatus.ACTIVE;
+      }
+      const saved = await existingUser.save();
+      return saved.toJSON();
+    }
+
+    const savedUser = await this.userModel.create({
+      googleId: data.googleId,
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      avatar: data.avatar,
+      emailVerified: true,
+      status: UserStatus.ACTIVE,
+      profileCompletionPercentage: this.calculateProfileCompletion({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        avatar: data.avatar,
+      }),
+      isProfileComplete: false,
+    });
+
+    return savedUser.toJSON();
+  }
+
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
 
