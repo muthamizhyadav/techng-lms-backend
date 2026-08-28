@@ -57,6 +57,9 @@ export class Course {
   duration: string;
 
   @Prop({ trim: true, default: null })
+  videoDuration: string;
+
+  @Prop({ trim: true, default: null })
   level: string;
 
   @Prop({ type: [String], default: [] })

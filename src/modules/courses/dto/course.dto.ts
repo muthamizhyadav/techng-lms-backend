@@ -134,6 +134,15 @@ export class CreateCourseDto {
   duration?: string;
 
   @ApiPropertyOptional({
+    example: '12 min 30 sec',
+    description: 'Intro / promo video duration (auto-detected on upload)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  videoDuration?: string;
+
+  @ApiPropertyOptional({
     example: 'Beginner',
     description: 'Course difficulty level',
   })
@@ -223,6 +232,9 @@ export class CourseResponseDto {
 
   @Expose()
   duration: string;
+
+  @Expose()
+  videoDuration: string;
 
   @Expose()
   level: string;

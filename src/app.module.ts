@@ -5,6 +5,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { AdminsModule } from './modules/admins/admins.module';
 import { CoursesModule } from './modules/courses/courses.module';
+import { CourseCategoriesModule } from './modules/course-categories/course-categories.module';
 import { CartModule } from './modules/cart/cart.module';
 import { EnrollmentsModule } from './modules/enrollments/enrollments.module';
 import { OrdersModule } from './modules/orders/orders.module';
@@ -37,6 +38,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
     UsersModule,
     AdminsModule,
     CoursesModule,
+    CourseCategoriesModule,
     UploadsModule,
     CartModule,
     EnrollmentsModule,
