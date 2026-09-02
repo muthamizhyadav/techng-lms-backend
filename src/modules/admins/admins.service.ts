@@ -81,7 +81,7 @@ export class AdminsService {
     const filter: Record<string, unknown> = { deletedAt: null };
 
     if (currentAdmin && !currentAdmin.isSuperAdmin()) {
-      filter._id = currentAdmin.id;
+      filter.role = { $nin: [AdminRole.ADMIN, AdminRole.SUPER_ADMIN] };
     }
 
     const [data, total] = await Promise.all([
@@ -324,22 +324,32 @@ export class AdminsService {
     return admin.can(permission);
   }
 
-  async getAdminStats(): Promise<{
+  async getAdminStats(currentAdmin?: Admin): Promise<{
     totalAdmins: number;
     activeAdmins: number;
     byRole: Record<string, number>;
     recentLogins: number;
   }> {
-    const totalAdmins = await this.adminModel.countDocuments({
-      deletedAt: null,
-    });
-    const activeAdmins = await this.adminModel.countDocuments({
+    const scoped = !!currentAdmin && !currentAdmin.isSuperAdmin();
+    const scopedRoles = [AdminRole.ADMIN, AdminRole.SUPER_ADMIN];
+
+    const baseFilter: Record<string, unknown> = { deletedAt: null };
+    const activeFilter: Record<string, unknown> = {
       status: AdminStatus.ACTIVE,
       deletedAt: null,
-    });
+    };
+
+    if (scoped) {
+      baseFilter.role = { $nin: scopedRoles };
+      activeFilter.role = { $nin: scopedRoles };
+    }
+
+    const totalAdmins = await this.adminModel.countDocuments(baseFilter);
+    const activeAdmins = await this.adminModel.countDocuments(activeFilter);
 
     const roleCounts: Record<string, number> = {};
     for (const role of Object.values(AdminRole)) {
+      if (scoped && scopedRoles.includes(role)) continue;
       const count = await this.adminModel.countDocuments({
         role,
         deletedAt: null,
@@ -350,8 +360,8 @@ export class AdminsService {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const recentLogins = await this.adminModel.countDocuments({
+      ...baseFilter,
       lastLoginAt: { $gte: sevenDaysAgo },
-      deletedAt: null,
     });
 
     return { totalAdmins, activeAdmins, byRole: roleCounts, recentLogins };
