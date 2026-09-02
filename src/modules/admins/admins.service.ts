@@ -76,8 +76,14 @@ export class AdminsService {
   async findAll(
     page: number = 1,
     limit: number = 10,
+    currentAdmin?: Admin,
   ): Promise<{ data: Admin[]; total: number; page: number; limit: number }> {
-    const filter = { deletedAt: null };
+    const filter: Record<string, unknown> = { deletedAt: null };
+
+    if (currentAdmin && !currentAdmin.isSuperAdmin()) {
+      filter._id = currentAdmin.id;
+    }
+
     const [data, total] = await Promise.all([
       this.adminModel
         .find(filter)

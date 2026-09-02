@@ -74,8 +74,9 @@ export class AdminsController {
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @CurrentAdmin() currentAdmin: Admin,
   ) {
-    return this.adminsService.findAll(page, limit);
+    return this.adminsService.findAll(page, limit, currentAdmin);
   }
 
   // ═══════════════════════════════════════════════════
@@ -96,8 +97,15 @@ export class AdminsController {
     description: 'Admin found',
     type: AdminResponseDto,
   })
+  @ApiResponse({ status: 403, description: 'Can only view your own profile' })
   @ApiResponse({ status: 404, description: 'Admin not found' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentAdmin() currentAdmin: Admin,
+  ) {
+    if (id !== currentAdmin.id && !currentAdmin.isSuperAdmin()) {
+      throw new ForbiddenException('You can only view your own profile');
+    }
     return this.adminsService.findOne(id);
   }
 
@@ -304,11 +312,13 @@ export class AdminsController {
   // ═══════════════════════════════════════════════════
 
   @Get('stats/overview')
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(AdminRole.SUPER_ADMIN)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({
     summary: 'Get admin statistics',
-    description: 'Total admins, active count, role distribution, recent logins',
+    description:
+      'Total admins, active count, role distribution, recent logins (Super Admin only)',
   })
   @ApiResponse({
     status: 200,
