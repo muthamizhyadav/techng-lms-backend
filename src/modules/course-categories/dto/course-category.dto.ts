@@ -20,6 +20,10 @@ export class CreateCourseCategoryDto {
   @IsString()
   @MinLength(2, { message: 'Category name must be at least 2 characters' })
   @MaxLength(100)
+  @Matches(/^[\p{L}\s\-'&,().]+$/u, {
+    message:
+      'Category name can only contain letters, spaces and characters like - \' & , . ( )',
+  })
   name: string;
 
   @ApiPropertyOptional({
