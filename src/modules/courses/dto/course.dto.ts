@@ -207,6 +207,84 @@ export class UpdateCourseStatusDto {
   status: CourseStatus;
 }
 
+export class PurchasedUserQueryDto {
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limit?: number = 20;
+
+  @ApiPropertyOptional({ example: 'john' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({ example: 'active', enum: ['active', 'completed', 'dropped'] })
+  @IsOptional()
+  @IsString()
+  status?: string;
+}
+
+@Exclude()
+export class PurchasedUserDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  firstName: string;
+
+  @Expose()
+  lastName: string;
+
+  @Expose()
+  email: string;
+
+  @Expose()
+  phone: string;
+
+  @Expose()
+  avatar: string;
+
+  @Expose()
+  enrollmentId: string;
+
+  @Expose()
+  enrollmentStatus: string;
+
+  @Expose()
+  progress: number;
+
+  @Expose()
+  enrolledAt: Date;
+
+  @Expose()
+  orderId: string;
+}
+
+@Exclude()
+export class PurchasedUsersResponseDto {
+  @Expose()
+  data: PurchasedUserDto[];
+
+  @Expose()
+  total: number;
+
+  @Expose()
+  purchasedCount: number;
+
+  @Expose()
+  page: number;
+
+  @Expose()
+  limit: number;
+}
+
 @Exclude()
 export class CourseResponseDto {
   @Expose()

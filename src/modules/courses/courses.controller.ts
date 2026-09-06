@@ -33,6 +33,7 @@ import {
   UpdateCourseDto,
   UpdateCourseStatusDto,
   CourseResponseDto,
+  PurchasedUsersResponseDto,
 } from './dto/course.dto';
 
 @ApiTags('📚 Courses')
@@ -118,6 +119,50 @@ export class CoursesController {
   @ApiResponse({ status: 404, description: 'Course not found' })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.coursesService.findOne(id);
+  }
+
+  // ═══════════════════════════════════════════════════
+  // ║  GET PURCHASED USERS FOR COURSE                  ║
+  // ═══════════════════════════════════════════════════
+
+  @Get(':id/purchased-users')
+  @UseGuards(JwtAdminGuard)
+  @ApiBearerAuth('admin-access-token')
+  @ApiOperation({
+    summary: 'Get purchased users for a course (Admin only)',
+    description:
+      'Paginated list of users who purchased/enrolled in the course with their profile and enrollment details',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Course UUID',
+    example: '0f8fad5b-d9cb-469f-a165-70867728950e',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'status', required: false, type: String, example: 'active' })
+  @ApiQuery({ name: 'search', required: false, type: String, example: 'john' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of purchased users retrieved',
+    type: PurchasedUsersResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Admin access required' })
+  @ApiResponse({ status: 404, description: 'Course not found' })
+  async getPurchasedUsers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.coursesService.getPurchasedUsers(id, {
+      page,
+      limit,
+      search,
+      status,
+    });
   }
 
   // ═══════════════════════════════════════════════════

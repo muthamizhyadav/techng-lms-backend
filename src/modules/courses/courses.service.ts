@@ -1,7 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Course, CourseDocument, CourseStatus } from './entities/course.entity';
+import {
+  Course,
+  CourseDocument,
+  CourseStatus,
+} from './entities/course.entity';
+import { Enrollment, EnrollmentDocument } from '../enrollments/entities/enrollment.entity';
+import { User, UserDocument } from '../users/entities/user.entity';
 import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
 
 export interface CourseQuery {
@@ -17,6 +23,10 @@ export class CoursesService {
   constructor(
     @InjectModel(Course.name)
     private readonly courseModel: Model<CourseDocument>,
+    @InjectModel(Enrollment.name)
+    private readonly enrollmentModel: Model<EnrollmentDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
   ) {}
 
   async findAll(
@@ -168,6 +178,113 @@ export class CoursesService {
       archived,
       totalStudents: totalStudents[0]?.total ?? 0,
       categories: categories.length,
+    };
+  }
+
+  async getPurchasedUsers(
+    courseId: string,
+    query: { page: number; limit: number; search?: string; status?: string },
+  ): Promise<{
+    data: Array<Record<string, unknown>>;
+    total: number;
+    purchasedCount: number;
+    page: number;
+    limit: number;
+  }> {
+    const course = await this.courseModel.findOne({
+      _id: courseId,
+      deletedAt: null,
+    });
+    if (!course) {
+      throw new NotFoundException(`Course with ID "${courseId}" not found`);
+    }
+
+    const { page, limit, search, status } = query;
+
+    const filter: Record<string, unknown> = { courseId };
+
+    if (status) {
+      filter.status = status;
+    }
+
+    let searchUserIds: string[] | null = null;
+    if (search && search.trim()) {
+      const regex = new RegExp(
+        search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+        'i',
+      );
+      const matchingUsers = await this.userModel
+        .find({
+          $or: [
+            { firstName: regex },
+            { lastName: regex },
+            { email: regex },
+            { phone: regex },
+          ],
+        })
+        .select('_id')
+        .exec();
+      searchUserIds = matchingUsers.map((u) => u._id.toString());
+
+      if (searchUserIds.length === 0) {
+        return { data: [], total: 0, purchasedCount: 0, page, limit };
+      }
+      filter.userId = { $in: searchUserIds };
+    }
+
+    const [enrollments, total, purchasedCount] = await Promise.all([
+      this.enrollmentModel
+        .find(filter)
+        .sort({ enrolledAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
+      this.enrollmentModel.countDocuments(filter),
+      this.enrollmentModel.countDocuments({ courseId }),
+    ]);
+
+    const userIds = enrollments.map((e) => e.userId);
+    const users = userIds.length
+      ? await this.userModel.find({ _id: { $in: userIds } })
+      : [];
+
+    const userMap = new Map<string, UserDocument>();
+    users.forEach((u) => {
+      userMap.set(u._id.toString(), u);
+    });
+
+    const data = enrollments
+      .map((enrollment) => {
+        const user = userMap.get(enrollment.userId);
+        if (!user) return null;
+
+        const fullName = user.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : user.firstName;
+
+        return {
+          id: user._id.toString(),
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phone: user.phone,
+          avatar: user.avatar,
+          enrollmentId: enrollment._id.toString(),
+          enrollmentStatus: enrollment.status,
+          progress: enrollment.progress,
+          enrolledAt: enrollment.enrolledAt,
+          orderId: enrollment.orderId,
+          fullName,
+        };
+      })
+      .filter(Boolean);
+
+    return {
+      data: data as Array<Record<string, unknown>>,
+      total,
+      purchasedCount,
+      page,
+      limit,
     };
   }
 }
