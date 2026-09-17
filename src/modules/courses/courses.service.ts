@@ -1,12 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { Course, CourseDocument, CourseStatus } from './entities/course.entity';
 import {
-  Course,
-  CourseDocument,
-  CourseStatus,
-} from './entities/course.entity';
-import { Enrollment, EnrollmentDocument } from '../enrollments/entities/enrollment.entity';
+  Enrollment,
+  EnrollmentDocument,
+} from '../enrollments/entities/enrollment.entity';
 import { User, UserDocument } from '../users/entities/user.entity';
 import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
 
@@ -83,11 +82,23 @@ export class CoursesService {
     createCourseDto: CreateCourseDto,
     adminId: string,
   ): Promise<Course> {
-    const savedCourse = await this.courseModel.create({
-      ...createCourseDto,
+    const { sessions, modules, ...rest } = createCourseDto;
+
+    const payload: Record<string, unknown> = {
+      ...rest,
       createdByAdminId: adminId,
       updatedByAdminId: adminId,
-    });
+    };
+
+    // "sessions" is the admin-facing curriculum shape; it is stored on the
+    // course as "modules" so the enrollments/curriculum player stays intact.
+    if (sessions !== undefined) {
+      payload.modules = sessions;
+    } else if (modules !== undefined) {
+      payload.modules = modules;
+    }
+
+    const savedCourse = await this.courseModel.create(payload);
 
     return savedCourse.toJSON();
   }
@@ -99,9 +110,22 @@ export class CoursesService {
   ): Promise<Course> {
     await this.findOne(id);
 
+    const { sessions, modules, ...rest } = updateCourseDto;
+
+    const payload: Record<string, unknown> = {
+      ...rest,
+      updatedByAdminId: adminId,
+    };
+
+    if (sessions !== undefined) {
+      payload.modules = sessions;
+    } else if (modules !== undefined) {
+      payload.modules = modules;
+    }
+
     const updatedCourse = await this.courseModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
-      { ...updateCourseDto, updatedByAdminId: adminId },
+      payload,
       { new: true },
     );
 
@@ -280,7 +304,7 @@ export class CoursesService {
       .filter(Boolean);
 
     return {
-      data: data as Array<Record<string, unknown>>,
+      data: data,
       total,
       purchasedCount,
       page,

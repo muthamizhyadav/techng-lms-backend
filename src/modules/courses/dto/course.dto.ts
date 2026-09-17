@@ -17,6 +17,16 @@ import { Exclude, Expose } from 'class-transformer';
 import { CourseStatus } from '../entities/course.entity';
 
 export class ModuleLessonDto {
+  @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description:
+      'Stable lesson ID. Sent back unchanged when editing so enrollment progress keeps working.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  _id?: string;
+
   @ApiProperty({ example: 'Introduction to Java 21' })
   @IsString()
   @MinLength(3)
@@ -40,13 +50,25 @@ export class ModuleLessonDto {
   @Min(1)
   order: number;
 
-  @ApiPropertyOptional({ enum: ['video', 'quiz', 'document'], default: 'video' })
+  @ApiPropertyOptional({
+    enum: ['video', 'quiz', 'document'],
+    default: 'video',
+  })
   @IsOptional()
   @IsEnum(['video', 'quiz', 'document'])
   type?: 'video' | 'quiz' | 'document';
 }
 
 export class ModuleDto {
+  @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description: 'Stable module ID. Sent back unchanged when editing.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  _id?: string;
+
   @ApiProperty({ example: 'Module 1: Java 21 Core Fundamentals' })
   @IsString()
   @MinLength(3)
@@ -64,6 +86,81 @@ export class ModuleDto {
   @ValidateNested({ each: true })
   @Type(() => ModuleLessonDto)
   lessons?: ModuleLessonDto[];
+}
+
+export class SessionVideoDto {
+  @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description:
+      'Stable video ID. Sent back unchanged when editing so enrollment progress keeps working.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  _id?: string;
+
+  @ApiProperty({ example: 'Session 1 – Course Introduction' })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(200)
+  title: string;
+
+  @ApiPropertyOptional({ example: 'https://r2.dev/session-1-intro.mp4' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  videoUrl?: string;
+
+  @ApiPropertyOptional({ example: 720, description: 'Duration in seconds' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  duration?: number;
+
+  @ApiProperty({ example: 1 })
+  @IsInt()
+  @Min(1)
+  order: number;
+
+  @ApiPropertyOptional({
+    enum: ['video', 'quiz', 'document'],
+    default: 'video',
+  })
+  @IsOptional()
+  @IsEnum(['video', 'quiz', 'document'])
+  type?: 'video' | 'quiz' | 'document';
+}
+
+export class SessionDto {
+  @ApiPropertyOptional({
+    example: '507f1f77bcf86cd799439011',
+    description: 'Stable session ID. Sent back unchanged when editing.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  _id?: string;
+
+  @ApiProperty({ example: 'Session 1: Foundations & Setup' })
+  @IsString()
+  @MinLength(3)
+  @MaxLength(200)
+  title: string;
+
+  @ApiProperty({ example: 1 })
+  @IsInt()
+  @Min(1)
+  order: number;
+
+  @ApiPropertyOptional({
+    type: [SessionVideoDto],
+    description: 'Videos (lessons) inside this session',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SessionVideoDto)
+  videos?: SessionVideoDto[];
 }
 
 export class CreateCourseDto {
@@ -161,7 +258,10 @@ export class CreateCourseDto {
   @ArrayUnique()
   skills?: string[];
 
-  @ApiPropertyOptional({ example: 4999, description: 'Course price in INR (minimum ₹1)' })
+  @ApiPropertyOptional({
+    example: 4999,
+    description: 'Course price in INR (minimum ₹1)',
+  })
   @IsOptional()
   @IsInt()
   @Min(1, { message: 'Course price must be at least ₹1' })
@@ -185,12 +285,26 @@ export class CreateCourseDto {
   @MaxLength(500)
   videoUrl?: string;
 
-  @ApiPropertyOptional({ type: [ModuleDto], description: 'Course curriculum modules with lessons' })
+  @ApiPropertyOptional({
+    type: [ModuleDto],
+    description: 'Course curriculum modules with lessons',
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ModuleDto)
   modules?: ModuleDto[];
+
+  @ApiPropertyOptional({
+    type: [SessionDto],
+    description:
+      'Course sessions with per-session videos (curriculum). Stored on the course as modules so students, progress tracking, and the curriculum player keep working.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SessionDto)
+  sessions?: SessionDto[];
 }
 
 export class UpdateCourseDto extends PartialType(CreateCourseDto) {}
@@ -225,7 +339,10 @@ export class PurchasedUserQueryDto {
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ example: 'active', enum: ['active', 'completed', 'dropped'] })
+  @ApiPropertyOptional({
+    example: 'active',
+    enum: ['active', 'completed', 'dropped'],
+  })
   @IsOptional()
   @IsString()
   status?: string;
