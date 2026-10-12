@@ -37,6 +37,8 @@ export class CoursesService {
 
     if (status) {
       filter.status = status;
+    }else{
+      filter.status = CourseStatus.ACTIVE;
     }
 
     if (category) {
