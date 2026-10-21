@@ -14,7 +14,7 @@ import { UserStatus } from '@shared/enums/role.enum';
 import {
   CreateUserDto,
   UpdatePasswordDto,
-  UpdateUserDto,
+  AdminUpdateUserDto,
 } from './dto/user.dto';
 
 @Injectable()
@@ -70,7 +70,7 @@ export class UsersService {
       this.userModel
         .find(filter)
         .select(
-          'email firstName lastName phone avatar status emailVerified phoneVerified profileCompletionPercentage isProfileComplete createdAt updatedAt',
+          'email firstName lastName phone experienceYears avatar status emailVerified phoneVerified profileCompletionPercentage isProfileComplete createdAt updatedAt',
         )
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
@@ -144,8 +144,18 @@ export class UsersService {
     return savedUser.toJSON();
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(id: string, updateUserDto: AdminUpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
+
+    if (updateUserDto.email && updateUserDto.email !== user.email) {
+      const emailExists = await this.userModel.findOne({
+        email: updateUserDto.email.toLowerCase(),
+        deletedAt: null,
+      });
+      if (emailExists) {
+        throw new ConflictException('Email address is already in use');
+      }
+    }
 
     if (updateUserDto.phone && updateUserDto.phone !== user.phone) {
       const phoneExists = await this.userModel.findOne({

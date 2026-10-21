@@ -31,6 +31,7 @@ import { User } from './entities/user.entity';
 import { UserStatus } from '@shared/enums/role.enum';
 import {
   CreateUserDto,
+  AdminUpdateUserDto,
   UpdatePasswordDto,
   UpdateUserDto,
   UserResponseDto,
@@ -110,6 +111,26 @@ export class UsersController {
   @ApiResponse({ status: 409, description: 'Email already exists' })
   async create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAdminGuard)
+  @ApiBearerAuth('admin-access-token')
+  @ApiOperation({ summary: 'Update student details (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Student UUID' })
+  @ApiBody({ type: AdminUpdateUserDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Student updated',
+    type: UserResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Student not found' })
+  @ApiResponse({ status: 409, description: 'Email or phone already in use' })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AdminUpdateUserDto,
+  ) {
+    return this.usersService.update(id, dto);
   }
 
   @Patch(':id/status')
@@ -249,5 +270,18 @@ export class UsersController {
   })
   async getUserStats() {
     return this.usersService.countByStatus();
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAdminGuard)
+  @ApiBearerAuth('admin-access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete student (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Student UUID' })
+  @ApiResponse({ status: 200, description: 'Student deleted' })
+  @ApiResponse({ status: 404, description: 'Student not found' })
+  async remove(@Param('id', ParseUUIDPipe) id: string) {
+    await this.usersService.remove(id);
+    return { message: 'Student deleted successfully' };
   }
 }

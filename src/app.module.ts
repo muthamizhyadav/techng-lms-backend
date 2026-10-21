@@ -18,6 +18,7 @@ import razorpayConfig from './config/razorpay.config';
 import googleConfig from './config/google.config';
 import { DatabaseModule } from './database/database.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
     CartModule,
     EnrollmentsModule,
     OrdersModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

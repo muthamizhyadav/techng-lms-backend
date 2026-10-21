@@ -174,11 +174,16 @@ export class CreateUserDto {
   @MaxLength(100)
   jobRole?: string;
 
-  @ApiProperty({ example: 2, description: 'Years of experience (0 = Fresher)' })
+  @ApiPropertyOptional({
+    example: 2,
+    description: 'Years of experience (0 = Fresher)',
+    default: 0,
+  })
+  @IsOptional()
   @IsInt()
   @Min(0)
   @Max(50)
-  experienceYears: number;
+  experienceYears?: number;
 
   @ApiPropertyOptional({
     example: 'en',
@@ -222,6 +227,17 @@ export class UpdateUserDto extends PartialType(
   OmitType(CreateUserDto, ['password', 'email'] as const),
 ) {}
 
+export class AdminUpdateUserDto extends UpdateUserDto {
+  @ApiPropertyOptional({
+    example: 'rahul.kumar@email.com',
+    description: 'Student email address',
+  })
+  @IsOptional()
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @MaxLength(255)
+  email?: string;
+}
+
 export class UpdatePasswordDto {
   @ApiProperty({ example: 'OldPass@123', description: 'Current password' })
   @IsString()
@@ -258,6 +274,9 @@ export class UserResponseDto {
 
   @Expose()
   phone: string;
+
+  @Expose()
+  experienceYears: number;
 
   @Expose()
   avatar: string;
