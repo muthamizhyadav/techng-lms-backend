@@ -17,6 +17,7 @@ import {
 import { CoursesService } from './courses.service';
 import { CourseStatus } from './entities/course.entity';
 import { CourseResponseDto } from './dto/course.dto';
+import { withCurriculumIds } from '@shared/utils/curriculum.util';
 
 @ApiTags('🌐 Public Courses')
 @Controller('public/courses')
@@ -26,11 +27,17 @@ export class PublicCoursesController {
   @Get()
   @ApiOperation({
     summary: 'Browse published courses (Public)',
-    description: 'Get paginated list of active/published courses for students and visitors',
+    description:
+      'Get paginated list of active/published courses for students and visitors',
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 12 })
-  @ApiQuery({ name: 'category', required: false, type: String, example: 'Web Development' })
+  @ApiQuery({
+    name: 'category',
+    required: false,
+    type: String,
+    example: 'Web Development',
+  })
   @ApiQuery({ name: 'search', required: false, type: String, example: 'React' })
   @ApiResponse({
     status: 200,
@@ -65,6 +72,10 @@ export class PublicCoursesController {
   })
   @ApiResponse({ status: 404, description: 'Course not found' })
   async getPublicCourseById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.coursesService.findOne(id);
+    const course = await this.coursesService.findOne(id);
+    return {
+      ...course.toJSON(),
+      modules: withCurriculumIds(course.modules || []),
+    };
   }
 }

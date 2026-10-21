@@ -4,6 +4,8 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
+  MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -17,6 +19,19 @@ export class CreateOrderDto {
   @IsArray()
   @IsUUID('4', { each: true, message: 'Each course ID must be a valid UUID' })
   courseIds?: string[];
+
+  @ApiPropertyOptional({
+    example: '+91 9876543210',
+    description:
+      'Contact phone number. Required to start a purchase; if the profile has no phone, this value is saved to it.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  @Matches(/^\+?[0-9\s-]{10,20}$/, {
+    message: 'Please provide a valid phone number',
+  })
+  phone?: string;
 }
 
 export class VerifyPaymentDto {

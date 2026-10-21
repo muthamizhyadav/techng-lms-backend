@@ -34,7 +34,8 @@ export class OrdersController {
   @Post('checkout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Initiate Razorpay checkout order for student cart or specific courses',
+    summary:
+      'Initiate Razorpay checkout order for student cart or specific courses',
   })
   @ApiBody({ type: CreateOrderDto })
   @ApiResponse({
@@ -43,6 +44,20 @@ export class OrdersController {
     type: CheckoutResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Cart empty or invalid items' })
+  @ApiResponse({
+    status: 400,
+    description:
+      'A phone number is required before purchase (code: PHONE_REQUIRED)',
+    schema: {
+      example: {
+        statusCode: 400,
+        code: 'PHONE_REQUIRED',
+        field: 'phone',
+        message: 'Please add your phone number before purchasing a course.',
+        error: 'Bad Request',
+      },
+    },
+  })
   async checkout(@CurrentUser() user: User, @Body() dto: CreateOrderDto) {
     return this.ordersService.createCheckoutOrder(user.id, dto);
   }
@@ -57,7 +72,10 @@ export class OrdersController {
     status: 200,
     description: 'Payment verified and courses enrolled',
   })
-  @ApiResponse({ status: 400, description: 'Invalid signature or payment failed' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid signature or payment failed',
+  })
   async verifyPayment(
     @CurrentUser() user: User,
     @Body() dto: VerifyPaymentDto,

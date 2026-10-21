@@ -4,7 +4,9 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Body,
+  Param,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -18,7 +20,7 @@ import {
   ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
-import { AuthService } from './auth.service';
+import { AuthService, StudentLoginContext } from './auth.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import {
@@ -67,8 +69,8 @@ export class AuthController {
   })
   @ApiResponse({ status: 409, description: 'Email already registered' })
   @ApiResponse({ status: 400, description: 'Validation failed' })
-  async register(@Body() dto: StudentRegisterDto) {
-    return this.authService.studentRegister(dto);
+  async register(@Body() dto: StudentRegisterDto, @Req() req: Request) {
+    return this.authService.studentRegister(dto, this.loginContext(req));
   }
 
   // ═══════════════════════════════════════════════════
@@ -97,9 +99,32 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Invalid email or password' })
   @ApiResponse({ status: 403, description: 'Account not active' })
+  @ApiResponse({
+    status: 409,
+    description:
+      'Account is already logged in on another device. Log out there, or resend the login with logoutOtherDevices=true to take over.',
+    schema: {
+      example: {
+        statusCode: 409,
+        code: 'ALREADY_LOGGED_IN',
+        message:
+          'You are already logged in on another device. Please log out from that device before logging in again.',
+        error: 'Conflict',
+        activeSessions: [
+          {
+            deviceName: 'Chrome on Windows',
+            platform: 'web',
+            loggedInAt: '2026-10-21T08:55:12.000Z',
+            lastActiveAt: '2026-10-21T09:12:44.000Z',
+            expiresAt: '2026-10-28T08:55:12.000Z',
+          },
+        ],
+      },
+    },
+  })
   @ApiResponse({ status: 400, description: 'Validation failed' })
-  async login(@Body() dto: StudentLoginDto) {
-    return this.authService.studentLogin(dto);
+  async login(@Body() dto: StudentLoginDto, @Req() req: Request) {
+    return this.authService.studentLogin(dto, this.loginContext(req));
   }
 
   // ═══════════════════════════════════════════════════
@@ -134,12 +159,62 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('student-access-token')
-  @ApiOperation({ summary: 'Logout student (revokes refresh token)' })
+  @ApiOperation({
+    summary: 'Logout student (revokes the current device session)',
+  })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async logout(@CurrentUser('id') userId: string) {
-    await this.authService.studentLogout(userId);
+  async logout(@CurrentUser('id') userId: string, @Req() req: Request) {
+    await this.authService.studentLogout(userId, this.currentSessionId(req));
     return { message: 'Logged out successfully' };
+  }
+
+  // ═══════════════════════════════════════════════════
+  // ║  DEVICE SESSIONS                                ║
+  // ═══════════════════════════════════════════════════
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('student-access-token')
+  @ApiOperation({ summary: 'List active device sessions for this student' })
+  @ApiResponse({ status: 200, description: 'Active sessions retrieved' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async listSessions(@CurrentUser('id') userId: string, @Req() req: Request) {
+    return this.authService.getStudentSessions(
+      userId,
+      this.currentSessionId(req),
+    );
+  }
+
+  @Delete('sessions')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('student-access-token')
+  @ApiOperation({ summary: 'Logout student from all devices' })
+  @ApiResponse({ status: 200, description: 'Logged out from all devices' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async logoutAll(@CurrentUser('id') userId: string) {
+    return this.authService.studentLogoutAll(userId);
+  }
+
+  @Delete('sessions/:sessionId')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('student-access-token')
+  @ApiOperation({ summary: 'Logout one device session by id' })
+  @ApiResponse({ status: 200, description: 'Device logged out successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Session not found' })
+  async logoutDevice(
+    @CurrentUser('id') userId: string,
+    @Param('sessionId') sessionId: string,
+    @Req() req: Request,
+  ) {
+    return this.authService.revokeStudentSession(
+      userId,
+      sessionId,
+      this.currentSessionId(req),
+    );
   }
 
   // ═══════════════════════════════════════════════════
@@ -176,12 +251,31 @@ export class AuthController {
   @ApiOperation({ summary: 'Google OAuth callback' })
   async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
     const user = req.user as any;
-    const result = await this.authService.googleLogin(user);
+    const result = await this.authService.googleLogin(
+      user,
+      this.loginContext(req),
+    );
     const frontendUrl = this.configService.get<string>('google.frontendUrl');
     const params = new URLSearchParams({
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
     });
     return res.redirect(`${frontendUrl}/auth/callback?${params.toString()}`);
+  }
+
+  private currentSessionId(req: Request): string | undefined {
+    const user = req.user as (User & { currentSessionId?: string }) | undefined;
+    return user?.currentSessionId;
+  }
+
+  private loginContext(req: Request): StudentLoginContext {
+    const headerDeviceId = req.headers['x-device-id'];
+    return {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      deviceId: Array.isArray(headerDeviceId)
+        ? headerDeviceId[0]
+        : headerDeviceId,
+    };
   }
 }

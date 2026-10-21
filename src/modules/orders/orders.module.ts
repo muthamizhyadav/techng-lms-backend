@@ -6,6 +6,7 @@ import { Order, OrderSchema } from './entities/order.entity';
 import { Course, CourseSchema } from '../courses/entities/course.entity';
 import { CartModule } from '../cart/cart.module';
 import { EnrollmentsModule } from '../enrollments/enrollments.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { EnrollmentsModule } from '../enrollments/enrollments.module';
     ]),
     CartModule,
     EnrollmentsModule,
+    UsersModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

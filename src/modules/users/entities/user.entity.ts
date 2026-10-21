@@ -5,6 +5,39 @@ import { generateUuid } from '@common/utils/uuid.util';
 
 export type UserDocument = HydratedDocument<User>;
 
+/** A single device/browser login session for a student account. */
+@Schema({ _id: false })
+export class UserSession {
+  @Prop({ required: true })
+  sessionId: string;
+
+  @Prop({ default: null })
+  deviceId: string;
+
+  @Prop({ default: null })
+  deviceName: string;
+
+  @Prop({ default: null })
+  platform: string;
+
+  @Prop({ default: null })
+  ipAddress: string;
+
+  @Prop({ default: null })
+  userAgent: string;
+
+  @Prop({ type: Date, default: Date.now })
+  loggedInAt: Date;
+
+  @Prop({ type: Date, default: Date.now })
+  lastActiveAt: Date;
+
+  @Prop({ type: Date, required: true })
+  expiresAt: Date;
+}
+
+export const UserSessionSchema = SchemaFactory.createForClass(UserSession);
+
 @Schema({
   _id: false,
   timestamps: true,
@@ -17,6 +50,7 @@ export type UserDocument = HydratedDocument<User>;
       delete ret._id;
       delete ret.password;
       delete ret.refreshTokenHash;
+      delete ret.activeSessions;
       delete ret.emailVerificationToken;
       delete ret.phoneOtp;
       delete ret.googleId;
@@ -121,6 +155,9 @@ export class User {
   @Prop({ default: null })
   refreshTokenHash: string;
 
+  @Prop({ type: [UserSessionSchema], default: [] })
+  activeSessions: UserSession[];
+
   @Prop({ type: Date, default: null })
   lastLoginAt: Date;
 
@@ -149,7 +186,9 @@ export class User {
   updatedAt: Date;
 
   get fullName(): string {
-    return this.lastName ? `${this.firstName} ${this.lastName}` : this.firstName;
+    return this.lastName
+      ? `${this.firstName} ${this.lastName}`
+      : this.firstName;
   }
 
   isActive(): boolean {

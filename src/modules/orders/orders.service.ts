@@ -13,6 +13,7 @@ import Razorpay from 'razorpay';
 import { Order, OrderDocument, OrderStatus } from './entities/order.entity';
 import { CartService } from '../cart/cart.service';
 import { EnrollmentsService } from '../enrollments/enrollments.service';
+import { UsersService } from '../users/users.service';
 import { Course, CourseDocument } from '../courses/entities/course.entity';
 import {
   CreateOrderDto,
@@ -33,6 +34,7 @@ export class OrdersService {
     private readonly configService: ConfigService,
     private readonly cartService: CartService,
     private readonly enrollmentsService: EnrollmentsService,
+    private readonly usersService: UsersService,
   ) {
     const keyId = this.configService.get<string>('razorpay.keyId');
     const keySecret = this.configService.get<string>('razorpay.keySecret');
@@ -82,7 +84,9 @@ export class OrdersService {
         deletedAt: null,
       });
       if (courses.length !== dto.courseIds.length) {
-        throw new BadRequestException('One or more selected courses were not found');
+        throw new BadRequestException(
+          'One or more selected courses were not found',
+        );
       }
       orderItems = courses.map((c) => ({
         courseId: c._id.toString(),
@@ -116,13 +120,18 @@ export class OrdersService {
       }
     }
 
+    // A student must have a contact phone number before buying a course.
+    await this.ensurePurchasablePhone(userId, dto.phone);
+
     const totalAmount = orderItems.reduce((sum, item) => sum + item.price, 0);
     const finalAmount = totalAmount < 1 ? 1 : totalAmount;
     const amountInPaise = Math.round(finalAmount * 100);
 
     const keyId = this.configService.get<string>('razorpay.keyId') || '';
-    const keySecret = this.configService.get<string>('razorpay.keySecret') || '';
-    const currency = this.configService.get<string>('razorpay.currency') || 'INR';
+    const keySecret =
+      this.configService.get<string>('razorpay.keySecret') || '';
+    const currency =
+      this.configService.get<string>('razorpay.currency') || 'INR';
 
     let razorpayOrderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
@@ -143,7 +152,9 @@ export class OrdersService {
       } catch (error) {
         this.logger.error('Error creating Razorpay order:', error);
         throw new BadRequestException(
-          (error as any)?.error?.description || (error as any)?.message || 'Failed to create payment order with Razorpay',
+          (error as any)?.error?.description ||
+            (error as any)?.message ||
+            'Failed to create payment order with Razorpay',
         );
       }
     }
@@ -167,6 +178,33 @@ export class OrdersService {
     };
   }
 
+  /**
+   * Courses can only be purchased after the student has a contact number.
+   * If the checkout request includes one, persist it on the profile first.
+   */
+  private async ensurePurchasablePhone(
+    userId: string,
+    phone?: string,
+  ): Promise<void> {
+    const normalizedPhone = phone?.trim();
+
+    if (normalizedPhone) {
+      await this.usersService.update(userId, { phone: normalizedPhone });
+      return;
+    }
+
+    const user = await this.usersService.findOne(userId);
+    if (!user.phone || !user.phone.trim()) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'Bad Request',
+        code: 'PHONE_REQUIRED',
+        field: 'phone',
+        message: 'Please add your phone number before purchasing a course.',
+      });
+    }
+  }
+
   async verifyPayment(
     userId: string,
     dto: VerifyPaymentDto,
@@ -188,7 +226,8 @@ export class OrdersService {
       };
     }
 
-    const keySecret = this.configService.get<string>('razorpay.keySecret') || '';
+    const keySecret =
+      this.configService.get<string>('razorpay.keySecret') || '';
     const keyId = this.configService.get<string>('razorpay.keyId') || '';
 
     // Verify signature if real Razorpay keys are active

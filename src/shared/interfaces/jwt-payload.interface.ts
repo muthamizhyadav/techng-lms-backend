@@ -3,6 +3,8 @@ export interface StudentJwtPayload {
   email: string;
   role: string;
   type: 'student';
+  /** Login session id — validated against the account's active device session. */
+  sid?: string;
   iat?: number;
   exp?: number;
 }

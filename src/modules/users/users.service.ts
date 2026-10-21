@@ -7,7 +7,8 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
-import { User, UserDocument } from './entities/user.entity';
+import { createHash } from 'crypto';
+import { User, UserDocument, UserSession } from './entities/user.entity';
 import { PasswordUtil } from '@common/utils/password.util';
 import { UserStatus } from '@shared/enums/role.enum';
 import {
@@ -202,12 +203,7 @@ export class UsersService {
     userId: string,
     refreshToken: string | null,
   ): Promise<void> {
-    const refreshTokenHash = refreshToken
-      ? await PasswordUtil.hash(
-          refreshToken,
-          this.configService.get('app.bcryptRounds'),
-        )
-      : null;
+    const refreshTokenHash = refreshToken ? this.hashToken(refreshToken) : null;
 
     await this.userModel.findByIdAndUpdate(userId, { refreshTokenHash });
   }
@@ -220,13 +216,126 @@ export class UsersService {
 
     if (!user || !user.refreshTokenHash) return false;
 
-    return PasswordUtil.compare(refreshToken, user.refreshTokenHash);
+    return this.hashToken(refreshToken) === user.refreshTokenHash;
+  }
+
+  /**
+   * Refresh tokens are long-lived secrets, so store a SHA-256 fingerprint
+   * instead of bcrypt (bcrypt silently truncates input at 72 bytes, which
+   * would make every token for a user hash to the same value).
+   */
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 
   async updateLastLogin(userId: string): Promise<void> {
     await this.userModel.findByIdAndUpdate(userId, {
       lastLoginAt: new Date(),
     });
+  }
+
+  // ═══════════════════════════════════════════════════
+  // ║  DEVICE SESSIONS (single active session)        ║
+  // ═══════════════════════════════════════════════════
+
+  /** Active (non-expired) sessions for a student. */
+  async getActiveSessions(userId: string): Promise<UserSession[]> {
+    const user = await this.userModel.findById(userId).select('activeSessions');
+
+    if (!user) {
+      throw new NotFoundException(`User with ID "${userId}" not found`);
+    }
+
+    const now = Date.now();
+    return (user.activeSessions ?? []).filter(
+      (session) =>
+        session.expiresAt && new Date(session.expiresAt).getTime() > now,
+    );
+  }
+
+  /**
+   * Store a new login session. By default any previous session is replaced,
+   * which enforces one active device per student account.
+   */
+  async startSession(
+    userId: string,
+    session: UserSession,
+    keepOtherSessions = false,
+  ): Promise<void> {
+    const user = await this.userModel.findById(userId).select('activeSessions');
+
+    if (!user) {
+      throw new NotFoundException(`User with ID "${userId}" not found`);
+    }
+
+    const now = Date.now();
+    const existing = (user.activeSessions ?? []).filter(
+      (current) =>
+        current.expiresAt && new Date(current.expiresAt).getTime() > now,
+    );
+
+    const sessions = keepOtherSessions
+      ? [
+          ...existing.filter(
+            (current) => current.sessionId !== session.sessionId,
+          ),
+          session,
+        ]
+      : [session];
+
+    await this.userModel.findByIdAndUpdate(userId, {
+      activeSessions: sessions,
+    });
+  }
+
+  async touchSession(
+    userId: string,
+    sessionId: string,
+    expiresAt?: Date,
+  ): Promise<void> {
+    const update: Record<string, unknown> = {
+      'activeSessions.$.lastActiveAt': new Date(),
+    };
+    if (expiresAt) {
+      update['activeSessions.$.expiresAt'] = expiresAt;
+    }
+
+    await this.userModel.updateOne(
+      { _id: userId, 'activeSessions.sessionId': sessionId },
+      { $set: update },
+    );
+  }
+
+  /** Revoke one device session. Returns true when a session was removed. */
+  async revokeSession(userId: string, sessionId: string): Promise<boolean> {
+    if (!sessionId) return false;
+
+    const result = await this.userModel.updateOne(
+      { _id: userId },
+      { $pull: { activeSessions: { sessionId } } },
+    );
+
+    return (result.modifiedCount ?? 0) > 0;
+  }
+
+  async revokeAllSessions(userId: string): Promise<void> {
+    await this.userModel.findByIdAndUpdate(userId, { activeSessions: [] });
+  }
+
+  async isSessionActive(userId: string, sessionId: string): Promise<boolean> {
+    if (!sessionId) return false;
+
+    const count = await this.userModel.countDocuments({
+      _id: userId,
+      activeSessions: {
+        $elemMatch: {
+          sessionId,
+          expiresAt: { $gt: new Date() },
+        },
+      },
+    });
+
+    return count > 0;
   }
 
   async verifyEmail(userId: string): Promise<void> {

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
@@ -7,6 +11,7 @@ import {
   EnrollmentStatus,
 } from './entities/enrollment.entity';
 import { Course, CourseDocument } from '../courses/entities/course.entity';
+import { withCurriculumIds } from '@shared/utils/curriculum.util';
 import { UpdateProgressDto } from './dto/update-progress.dto';
 
 @Injectable()
@@ -125,14 +130,18 @@ export class EnrollmentsService {
       enrollmentId: enrollment._id.toString(),
       courseId: course._id.toString(),
       courseTitle: course.title,
-      modules: course.modules || [],
+      modules: withCurriculumIds(course.modules || []),
       lessonProgress: lessonProgressObj,
       currentLessonId: enrollment.currentLessonId || null,
       overallProgress: enrollment.progress,
     };
   }
 
-  async updateProgress(userId: string, enrollmentId: string, dto: UpdateProgressDto) {
+  async updateProgress(
+    userId: string,
+    enrollmentId: string,
+    dto: UpdateProgressDto,
+  ) {
     const enrollment = await this.enrollmentModel.findOne({
       _id: enrollmentId,
       userId,
@@ -143,10 +152,14 @@ export class EnrollmentsService {
 
     const updateFields: Record<string, any> = {};
     updateFields[`lessonProgress.${dto.lessonId}.watchTime`] = dto.watchTime;
-    updateFields[`lessonProgress.${dto.lessonId}.lastPosition`] = dto.lastPosition;
+    updateFields[`lessonProgress.${dto.lessonId}.lastPosition`] =
+      dto.lastPosition;
     updateFields.currentLessonId = dto.lessonId;
 
-    await this.enrollmentModel.updateOne({ _id: enrollmentId }, { $set: updateFields });
+    await this.enrollmentModel.updateOne(
+      { _id: enrollmentId },
+      { $set: updateFields },
+    );
 
     return { success: true };
   }
@@ -172,10 +185,12 @@ export class EnrollmentsService {
     updateFields[`lessonProgress.${lessonId}.completed`] = true;
     updateFields[`lessonProgress.${lessonId}.completedAt`] = new Date();
 
+    const modules = withCurriculumIds(course.modules || []);
+
     const allLessonIds: string[] = [];
-    for (const mod of course.modules || []) {
+    for (const mod of modules) {
       for (const lesson of mod.lessons || []) {
-        allLessonIds.push(lesson._id?.toString() || '');
+        allLessonIds.push(String(lesson._id || ''));
       }
     }
 
@@ -190,7 +205,10 @@ export class EnrollmentsService {
 
     const totalLessons = allLessonIds.length || 1;
     const completedCount = currentCompleted.size;
-    const overallProgress = Math.min(Math.round((completedCount / totalLessons) * 100), 100);
+    const overallProgress = Math.min(
+      Math.round((completedCount / totalLessons) * 100),
+      100,
+    );
 
     updateFields.progress = overallProgress;
 
@@ -198,13 +216,16 @@ export class EnrollmentsService {
       updateFields.status = EnrollmentStatus.COMPLETED;
     }
 
-    await this.enrollmentModel.updateOne({ _id: enrollmentId }, { $set: updateFields });
+    await this.enrollmentModel.updateOne(
+      { _id: enrollmentId },
+      { $set: updateFields },
+    );
 
     let nextLessonId: string | null = null;
     let foundCurrent = false;
-    for (const mod of course.modules || []) {
+    for (const mod of modules) {
       for (const lesson of mod.lessons || []) {
-        const lid = lesson._id?.toString() || '';
+        const lid = String(lesson._id || '');
         if (foundCurrent && !currentCompleted.has(lid)) {
           nextLessonId = lid;
           break;

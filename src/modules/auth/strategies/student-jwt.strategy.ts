@@ -27,6 +27,10 @@ export class StudentJwtStrategy extends PassportStrategy(
       throw new UnauthorizedException('Invalid token type for student access');
     }
 
+    if (!payload.sid) {
+      throw new UnauthorizedException('Session expired. Please log in again.');
+    }
+
     const user = await this.usersService.findOne(payload.sub);
 
     if (!user.isActive()) {
@@ -34,6 +38,25 @@ export class StudentJwtStrategy extends PassportStrategy(
         'Your account has been suspended or deactivated',
       );
     }
+
+    const now = Date.now();
+    const session = (user.activeSessions ?? []).find(
+      (current) =>
+        current.sessionId === payload.sid &&
+        current.expiresAt &&
+        new Date(current.expiresAt).getTime() > now,
+    );
+
+    if (!session) {
+      throw new UnauthorizedException(
+        'Your session has ended. Please log in again.',
+      );
+    }
+
+    // Expose the current session id to controllers so logout can revoke the
+    // exact device that made the request.
+    (user as User & { currentSessionId?: string }).currentSessionId =
+      payload.sid;
 
     return user;
   }
