@@ -7,6 +7,7 @@ import { Course, CourseSchema } from '../courses/entities/course.entity';
 import { CartModule } from '../cart/cart.module';
 import { EnrollmentsModule } from '../enrollments/enrollments.module';
 import { UsersModule } from '../users/users.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { UsersModule } from '../users/users.module';
     CartModule,
     EnrollmentsModule,
     UsersModule,
+    NotificationsModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

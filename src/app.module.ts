@@ -16,9 +16,12 @@ import jwtConfig from './config/jwt.config';
 import storageConfig from './config/storage.config';
 import razorpayConfig from './config/razorpay.config';
 import googleConfig from './config/google.config';
+import firebaseConfig from './config/firebase.config';
+import mailConfig from './config/mail.config';
 import { DatabaseModule } from './database/database.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -31,6 +34,8 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
         storageConfig,
         razorpayConfig,
         googleConfig,
+        firebaseConfig,
+        mailConfig,
       ],
       envFilePath: ['.env'],
     }),
@@ -45,6 +50,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     EnrollmentsModule,
     OrdersModule,
     DashboardModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

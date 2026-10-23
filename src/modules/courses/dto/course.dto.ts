@@ -80,6 +80,15 @@ export class ModuleDto {
   @Min(1)
   order: number;
 
+  @ApiPropertyOptional({
+    example: 'https://cdn.example.com/session-1.jpg',
+    description: 'Optional thumbnail image URL for this session/module',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  thumbnail?: string;
+
   @ApiPropertyOptional({ type: [ModuleLessonDto] })
   @IsOptional()
   @IsArray()
@@ -151,6 +160,15 @@ export class SessionDto {
   @IsInt()
   @Min(1)
   order: number;
+
+  @ApiPropertyOptional({
+    example: 'https://cdn.example.com/session-1.jpg',
+    description: 'Optional thumbnail image URL for this session',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  thumbnail?: string;
 
   @ApiPropertyOptional({
     type: [SessionVideoDto],

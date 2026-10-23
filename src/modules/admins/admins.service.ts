@@ -4,12 +4,18 @@ import {
   ConflictException,
   BadRequestException,
   ForbiddenException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Admin, AdminDocument } from './entities/admin.entity';
 import { PasswordUtil } from '@common/utils/password.util';
+import {
+  compactPhone,
+  normalizeEmail,
+  phoneDuplicateRegex,
+} from '@common/utils/normalize.util';
 import { AdminRole, AdminStatus } from '@shared/enums/user-status.enum';
 import {
   CreateAdminDto,
@@ -20,12 +26,35 @@ import {
 } from './dto/admin.dto';
 
 @Injectable()
-export class AdminsService {
+export class AdminsService implements OnModuleInit {
   constructor(
     @InjectModel(Admin.name)
     private readonly adminModel: Model<AdminDocument>,
     private readonly configService: ConfigService,
   ) {}
+
+  /**
+   * Enforce phone uniqueness at the DB level (race-condition backstop for the
+   * app-level checks in create/update). Created here rather than via a schema
+   * index so a build failure on legacy duplicate data logs a warning instead
+   * of crashing the process.
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      await this.adminModel.collection.createIndex(
+        { phone: 1 },
+        {
+          unique: true,
+          partialFilterExpression: { phone: { $type: 'string' } },
+        },
+      );
+    } catch (error) {
+      console.warn(
+        '[AdminsService] Could not ensure unique phone index (duplicate phone data may exist):',
+        (error as Error).message,
+      );
+    }
+  }
 
   async countAll(): Promise<number> {
     return this.adminModel.countDocuments({ deletedAt: null });
@@ -35,17 +64,21 @@ export class AdminsService {
     createAdminDto: CreateAdminDto,
     createdByAdminId: string,
   ): Promise<Admin> {
-    const existingAdmin = await this.findByEmail(createAdminDto.email);
+    const email = normalizeEmail(createAdminDto.email);
+    const phone = compactPhone(createAdminDto.phone);
+
+    // The email unique index spans every document (including soft-deleted
+    // ones), so the duplicate check must too.
+    const existingAdmin = await this.adminModel.findOne({ email });
     if (existingAdmin) {
       throw new ConflictException(
         'Email address is already registered as admin',
       );
     }
 
-    if (createAdminDto.phone) {
+    if (phone) {
       const phoneExists = await this.adminModel.findOne({
-        phone: createAdminDto.phone,
-        deletedAt: null,
+        phone: phoneDuplicateRegex(phone),
       });
       if (phoneExists) {
         throw new ConflictException('Phone number is already registered');
@@ -62,15 +95,38 @@ export class AdminsService {
       this.configService.get('app.bcryptRounds'),
     );
 
-    const savedAdmin = await this.adminModel.create({
-      ...createAdminDto,
-      password: hashedPassword,
-      permissions,
-      createdByAdminId: createdByAdminId || null,
-      loginCount: 0,
-    });
+    let savedAdmin: AdminDocument;
+    try {
+      savedAdmin = await this.adminModel.create({
+        ...createAdminDto,
+        email,
+        phone,
+        password: hashedPassword,
+        permissions,
+        createdByAdminId: createdByAdminId || null,
+        loginCount: 0,
+      });
+    } catch (error) {
+      // Closes the race window between the checks above and the insert.
+      throw this.mapDuplicateKeyError(error);
+    }
 
     return savedAdmin.toJSON();
+  }
+
+  /** Converts a Mongo duplicate-key error (E11000) into a friendly 409. */
+  private mapDuplicateKeyError(error: unknown): unknown {
+    const mongoError = error as {
+      code?: number;
+      keyPattern?: Record<string, unknown>;
+    };
+    if (mongoError?.code === 11000) {
+      const field = mongoError.keyPattern?.phone
+        ? 'Phone number'
+        : 'Email address';
+      return new ConflictException(`${field} is already registered`);
+    }
+    return error;
   }
 
   async findAll(
@@ -114,11 +170,53 @@ export class AdminsService {
   }
 
   async findByEmail(email: string): Promise<AdminDocument | null> {
-    return this.adminModel.findOne({ email, deletedAt: null });
+    return this.adminModel.findOne({
+      email: normalizeEmail(email),
+      deletedAt: null,
+    });
   }
 
   async findByEmailWithPassword(email: string): Promise<AdminDocument | null> {
-    return this.adminModel.findOne({ email, deletedAt: null });
+    return this.adminModel.findOne({
+      email: normalizeEmail(email),
+      deletedAt: null,
+    });
+  }
+
+  async setPasswordResetToken(
+    adminId: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.adminModel.updateOne(
+      { _id: adminId, deletedAt: null },
+      {
+        passwordResetToken: tokenHash,
+        passwordResetExpires: expiresAt,
+      },
+    );
+  }
+
+  async findByPasswordResetToken(
+    tokenHash: string,
+  ): Promise<AdminDocument | null> {
+    return this.adminModel.findOne({
+      passwordResetToken: tokenHash,
+      passwordResetExpires: { $gt: new Date() },
+      deletedAt: null,
+    });
+  }
+
+  async resetPassword(adminId: string, hashedPassword: string): Promise<void> {
+    await this.adminModel.updateOne(
+      { _id: adminId },
+      {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        refreshTokenHash: null,
+      },
+    );
   }
 
   async update(
@@ -137,20 +235,29 @@ export class AdminsService {
       }
     }
 
-    if (updateAdminDto.phone && updateAdminDto.phone !== admin.phone) {
-      const phoneExists = await this.adminModel.findOne({
-        phone: updateAdminDto.phone,
-        deletedAt: null,
-      });
-      if (phoneExists) {
-        throw new ConflictException('Phone number is already in use');
+    if (updateAdminDto.phone) {
+      const phone = compactPhone(updateAdminDto.phone);
+      if (phone && phone !== compactPhone(admin.phone)) {
+        const phoneExists = await this.adminModel.findOne({
+          phone: phoneDuplicateRegex(phone),
+          _id: { $ne: id },
+        });
+        if (phoneExists) {
+          throw new ConflictException('Phone number is already in use');
+        }
+        updateAdminDto.phone = phone;
       }
     }
 
     Object.assign(admin, updateAdminDto, {
       updatedByAdminId: currentAdminId,
     });
-    const updatedAdmin = await admin.save();
+    let updatedAdmin: AdminDocument;
+    try {
+      updatedAdmin = await admin.save();
+    } catch (error) {
+      throw this.mapDuplicateKeyError(error);
+    }
     return updatedAdmin.toJSON();
   }
 

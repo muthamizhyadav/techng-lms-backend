@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -10,6 +11,11 @@ import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { User, UserDocument, UserSession } from './entities/user.entity';
 import { PasswordUtil } from '@common/utils/password.util';
+import {
+  compactPhone,
+  normalizeEmail,
+  phoneDuplicateRegex,
+} from '@common/utils/normalize.util';
 import { UserStatus } from '@shared/enums/role.enum';
 import {
   CreateUserDto,
@@ -18,23 +24,51 @@ import {
 } from './dto/user.dto';
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   constructor(
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
     private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * Enforce phone uniqueness at the DB level (race-condition backstop for the
+   * app-level checks in create/update). Created here rather than via a schema
+   * index so a build failure on legacy duplicate data logs a warning instead
+   * of crashing the process.
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      await this.userModel.collection.createIndex(
+        { phone: 1 },
+        {
+          unique: true,
+          partialFilterExpression: { phone: { $type: 'string' } },
+        },
+      );
+    } catch (error) {
+      console.warn(
+        '[UsersService] Could not ensure unique phone index (duplicate phone data may exist):',
+        (error as Error).message,
+      );
+    }
+  }
+
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const existingUser = await this.findByEmail(createUserDto.email);
+    const email = normalizeEmail(createUserDto.email);
+    const phone = compactPhone(createUserDto.phone);
+
+    // The email unique index spans every document (including soft-deleted
+    // ones), so the duplicate check must too — otherwise a deleted account's
+    // email passes this check and the insert fails with a raw E11000 error.
+    const existingUser = await this.userModel.findOne({ email });
     if (existingUser) {
       throw new ConflictException('Email address is already registered');
     }
 
-    if (createUserDto.phone) {
+    if (phone) {
       const phoneExists = await this.userModel.findOne({
-        phone: createUserDto.phone,
-        deletedAt: null,
+        phone: phoneDuplicateRegex(phone),
       });
       if (phoneExists) {
         throw new ConflictException('Phone number is already registered');
@@ -50,15 +84,40 @@ export class UsersService {
       ...createUserDto,
     });
 
-    const savedUser = await this.userModel.create({
-      ...createUserDto,
-      password: hashedPassword,
-      status: UserStatus.ACTIVE,
-      profileCompletionPercentage,
-      isProfileComplete: profileCompletionPercentage >= 80,
-    });
+    let savedUser: UserDocument;
+    try {
+      savedUser = await this.userModel.create({
+        ...createUserDto,
+        email,
+        phone,
+        password: hashedPassword,
+        status: UserStatus.ACTIVE,
+        profileCompletionPercentage,
+        isProfileComplete: profileCompletionPercentage >= 80,
+      });
+    } catch (error) {
+      // Closes the race window between the checks above and the insert:
+      // a concurrent duplicate insert surfaces as a Mongo duplicate-key
+      // error, which should be a 409 and not a 500.
+      throw this.mapDuplicateKeyError(error);
+    }
 
     return savedUser.toJSON();
+  }
+
+  /** Converts a Mongo duplicate-key error (E11000) into a friendly 409. */
+  private mapDuplicateKeyError(error: unknown): unknown {
+    const mongoError = error as {
+      code?: number;
+      keyPattern?: Record<string, unknown>;
+    };
+    if (mongoError?.code === 11000) {
+      const field = mongoError.keyPattern?.phone
+        ? 'Phone number'
+        : 'Email address';
+      return new ConflictException(`${field} is already registered`);
+    }
+    return error;
   }
 
   async findAll(
@@ -93,11 +152,17 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<UserDocument | null> {
-    return this.userModel.findOne({ email, deletedAt: null });
+    return this.userModel.findOne({
+      email: normalizeEmail(email),
+      deletedAt: null,
+    });
   }
 
   async findByEmailWithPassword(email: string): Promise<UserDocument | null> {
-    return this.userModel.findOne({ email, deletedAt: null });
+    return this.userModel.findOne({
+      email: normalizeEmail(email),
+      deletedAt: null,
+    });
   }
 
   async findByGoogleId(googleId: string): Promise<UserDocument | null> {
@@ -147,23 +212,31 @@ export class UsersService {
   async update(id: string, updateUserDto: AdminUpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
 
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const emailExists = await this.userModel.findOne({
-        email: updateUserDto.email.toLowerCase(),
-        deletedAt: null,
-      });
-      if (emailExists) {
-        throw new ConflictException('Email address is already in use');
+    if (updateUserDto.email) {
+      const email = normalizeEmail(updateUserDto.email);
+      if (email !== normalizeEmail(user.email)) {
+        const emailExists = await this.userModel.findOne({
+          email,
+          _id: { $ne: id },
+        });
+        if (emailExists) {
+          throw new ConflictException('Email address is already in use');
+        }
+        updateUserDto.email = email;
       }
     }
 
-    if (updateUserDto.phone && updateUserDto.phone !== user.phone) {
-      const phoneExists = await this.userModel.findOne({
-        phone: updateUserDto.phone,
-        deletedAt: null,
-      });
-      if (phoneExists) {
-        throw new ConflictException('Phone number is already in use');
+    if (updateUserDto.phone) {
+      const phone = compactPhone(updateUserDto.phone);
+      if (phone && phone !== compactPhone(user.phone)) {
+        const phoneExists = await this.userModel.findOne({
+          phone: phoneDuplicateRegex(phone),
+          _id: { $ne: id },
+        });
+        if (phoneExists) {
+          throw new ConflictException('Phone number is already in use');
+        }
+        updateUserDto.phone = phone;
       }
     }
 
@@ -171,7 +244,12 @@ export class UsersService {
     user.profileCompletionPercentage = this.calculateProfileCompletion(user);
     user.isProfileComplete = user.profileCompletionPercentage >= 80;
 
-    const savedUser = await user.save();
+    let savedUser: UserDocument;
+    try {
+      savedUser = await user.save();
+    } catch (error) {
+      throw this.mapDuplicateKeyError(error);
+    }
     return savedUser.toJSON();
   }
 

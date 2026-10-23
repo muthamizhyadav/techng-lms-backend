@@ -9,7 +9,6 @@ import {
   HttpStatus,
   UseGuards,
   Ip,
-  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -30,7 +29,11 @@ import {
   AdminRegisterDto,
   AdminResponseDto,
 } from '@modules/admins/dto/admin.dto';
-import { RefreshTokenDto } from './dto/auth.dto';
+import {
+  ForgotPasswordDto,
+  RefreshTokenDto,
+  ResetPasswordDto,
+} from './dto/auth.dto';
 
 @ApiTags('🛡️ Admin Auth')
 @Controller('auth/admin')
@@ -121,6 +124,36 @@ export class AuthAdminController {
     @CurrentAdmin() currentAdmin: Admin,
   ) {
     return this.authService.adminRegister(dto, currentAdmin?.id);
+  }
+
+  // ═══════════════════════════════════════════════════
+  // ║  PASSWORD RESET                                 ║
+  // ═══════════════════════════════════════════════════
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Request an admin password reset email',
+    description:
+      'Sends a single-use reset link when the email belongs to an admin account. Always responds with the same message to prevent account enumeration.',
+  })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({ status: 200, description: 'Reset email requested.' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.adminForgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reset an admin password with an emailed token',
+  })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({ status: 200, description: 'Password reset successfully.' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired reset token' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.adminResetPassword(dto);
   }
 
   // ═══════════════════════════════════════════════════

@@ -18,7 +18,7 @@ import {
   OmitType,
   PartialType,
 } from '@nestjs/swagger';
-import { Exclude, Expose } from 'class-transformer';
+import { Exclude, Expose, Transform } from 'class-transformer';
 import { UserStatus } from '@/shared/enums/role.enum';
 
 export class CreateUserDto {
@@ -26,6 +26,9 @@ export class CreateUserDto {
     example: 'rahul.kumar@email.com',
     description: 'Student email address',
   })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @IsEmail({}, { message: 'Please provide a valid email address' })
   @MaxLength(255)
   email: string;
@@ -66,6 +69,9 @@ export class CreateUserDto {
     example: '+91 9876543210',
     description: 'Phone number with country code',
   })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsOptional()
   @IsString()
   @MaxLength(20)
@@ -232,6 +238,9 @@ export class AdminUpdateUserDto extends UpdateUserDto {
     example: 'rahul.kumar@email.com',
     description: 'Student email address',
   })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @IsOptional()
   @IsEmail({}, { message: 'Please provide a valid email address' })
   @MaxLength(255)

@@ -100,3 +100,30 @@ export class RefreshTokenDto {
   @IsNotEmpty({ message: 'Refresh token is required' })
   refreshToken: string;
 }
+
+export class ForgotPasswordDto {
+  @ApiProperty({
+    example: 'admin@techng.in',
+    description: 'Email address of the account to recover',
+  })
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  email: string;
+}
+
+export class ResetPasswordDto {
+  @ApiProperty({
+    description: 'Single-use token from the password reset email',
+  })
+  @IsString()
+  @IsNotEmpty({ message: 'Reset token is required' })
+  token: string;
+
+  @ApiProperty({
+    example: 'NewStrongPass@123',
+    description: 'New account password',
+  })
+  @IsString()
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  @MaxLength(50)
+  newPassword: string;
+}

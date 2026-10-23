@@ -9,6 +9,8 @@ import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { UsersModule } from '@modules/users/users.module';
 import { AdminsModule } from '@modules/admins/admins.module';
+import { NotificationsModule } from '@modules/notifications/notifications.module';
+import { MailModule } from '@modules/mail/mail.module';
 import { AuthAdminController } from './auth-admin.controller';
 
 @Module({
@@ -26,6 +28,8 @@ import { AuthAdminController } from './auth-admin.controller';
     }),
     UsersModule,
     AdminsModule,
+    NotificationsModule,
+    MailModule,
   ],
   controllers: [AuthController, AuthAdminController],
   providers: [AuthService, StudentJwtStrategy, AdminJwtStrategy, GoogleStrategy],

@@ -14,6 +14,8 @@ import { Order, OrderDocument, OrderStatus } from './entities/order.entity';
 import { CartService } from '../cart/cart.service';
 import { EnrollmentsService } from '../enrollments/enrollments.service';
 import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { AdminNotificationType } from '../notifications/entities/notification.entity';
 import { Course, CourseDocument } from '../courses/entities/course.entity';
 import {
   CreateOrderDto,
@@ -35,6 +37,7 @@ export class OrdersService {
     private readonly cartService: CartService,
     private readonly enrollmentsService: EnrollmentsService,
     private readonly usersService: UsersService,
+    private readonly notificationsService: NotificationsService,
   ) {
     const keyId = this.configService.get<string>('razorpay.keyId');
     const keySecret = this.configService.get<string>('razorpay.keySecret');
@@ -263,6 +266,8 @@ export class OrdersService {
     // Clear cart for the user
     await this.cartService.clearCart(userId);
 
+    void this.notifyAdminsOfPurchase(userId, order);
+
     return {
       success: true,
       message: 'Payment verified and courses enrolled successfully',
@@ -272,5 +277,38 @@ export class OrdersService {
 
   async getMyOrders(userId: string): Promise<Order[]> {
     return this.orderModel.find({ userId }).sort({ createdAt: -1 }).exec();
+  }
+
+  /** Fire-and-forget admin push so checkout never fails because of FCM. */
+  private async notifyAdminsOfPurchase(
+    userId: string,
+    order: OrderDocument,
+  ): Promise<void> {
+    try {
+      const user = await this.usersService.findOne(userId);
+      const name =
+        [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+      const courseTitles = order.items.map((item) => item.title);
+      const summary =
+        courseTitles.length === 1
+          ? `"${courseTitles[0]}"`
+          : `${courseTitles.length} courses`;
+
+      await this.notificationsService.notifyAdmins({
+        title: 'Course purchased',
+        body: `${name} purchased ${summary} for ${order.currency} ${order.totalAmount}.`,
+        type: AdminNotificationType.COURSE_PURCHASED,
+        data: {
+          type: 'course_purchased',
+          orderId: order._id.toString(),
+          userId,
+        },
+        link: '/dashboard',
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Could not build purchase notification: ${(error as Error).message}`,
+      );
+    }
   }
 }

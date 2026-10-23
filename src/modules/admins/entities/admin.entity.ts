@@ -19,6 +19,7 @@ export type AdminDocument = HydratedDocument<Admin>;
       delete ret.refreshTokenHash;
       delete ret.twoFactorSecret;
       delete ret.passwordResetToken;
+      delete ret.fcmTokens;
       return ret;
     },
   },
@@ -109,6 +110,9 @@ export class Admin {
 
   @Prop({ default: true })
   smsNotifications: boolean;
+
+  @Prop({ type: [String], default: [] })
+  fcmTokens: string[];
 
   @Prop({ type: Date, default: null })
   deletedAt: Date;

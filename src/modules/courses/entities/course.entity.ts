@@ -79,6 +79,7 @@ export class Course {
       {
         title: { type: String, required: true },
         order: { type: Number, required: true },
+        thumbnail: { type: String, default: null },
         lessons: [
           {
             title: { type: String, required: true },
@@ -96,6 +97,7 @@ export class Course {
     _id?: string;
     title: string;
     order: number;
+    thumbnail?: string | null;
     lessons: Array<{
       _id?: string;
       title: string;

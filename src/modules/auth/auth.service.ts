@@ -6,10 +6,11 @@ import {
   ForbiddenException,
   ConflictException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { UsersService } from '@modules/users/users.service';
 import { AdminsService } from '@modules/admins/admins.service';
 import { PasswordUtil } from '@common/utils/password.util';
@@ -21,8 +22,13 @@ import {
 import { User, UserSession } from '@modules/users/entities/user.entity';
 import { Admin } from '@modules/admins/entities/admin.entity';
 import { AdminRole } from '@shared/enums/user-status.enum';
+import { NotificationsService } from '@modules/notifications/notifications.service';
+import { AdminNotificationType } from '@modules/notifications/entities/notification.entity';
+import { MailService } from '@modules/mail/mail.service';
 import {
+  ForgotPasswordDto,
   RefreshTokenDto,
+  ResetPasswordDto,
   StudentLoginDto,
   StudentRegisterDto,
 } from './dto/auth.dto';
@@ -60,6 +66,8 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
     private readonly adminsService: AdminsService,
+    private readonly notificationsService: NotificationsService,
+    private readonly mailService: MailService,
   ) {}
 
   async studentRegister(
@@ -76,6 +84,8 @@ export class AuthService {
 
     delete (user as any).password;
     delete (user as any).refreshTokenHash;
+
+    void this.notifyAdminsOfNewStudent(user);
 
     return { ...tokens, user };
   }
@@ -261,7 +271,14 @@ export class AuthService {
     let user = await this.usersService.findByGoogleId(profile.googleId);
 
     if (!user) {
+      const existingByEmail = await this.usersService.findByEmail(
+        profile.email,
+      );
       user = (await this.usersService.createGoogleUser(profile)) as any;
+
+      if (!existingByEmail) {
+        void this.notifyAdminsOfNewStudent(user);
+      }
     }
 
     // Google sign-in is a trusted redirect flow, so it takes over the single
@@ -315,6 +332,72 @@ export class AuthService {
     delete (admin as any).refreshTokenHash;
 
     return { ...tokens, admin };
+  }
+
+  /**
+   * Sends a single-use password-reset link to the admin's email. The response
+   * is intentionally generic so the endpoint cannot be used to enumerate
+   * registered admin accounts.
+   */
+  async adminForgotPassword(
+    dto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    const message =
+      'If an account with that email exists, a password reset link has been sent.';
+
+    const admin = await this.adminsService.findByEmail(dto.email);
+    if (!admin) {
+      return { message };
+    }
+
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+    const ttlMinutes =
+      this.configService.get<number>('mail.resetTokenTtlMinutes') ?? 60;
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60_000);
+
+    await this.adminsService.setPasswordResetToken(
+      admin.id,
+      tokenHash,
+      expiresAt,
+    );
+
+    const baseUrl = (
+      this.configService.get<string>('mail.adminPanelUrl') ?? ''
+    ).replace(/\/+$/, '');
+    const resetUrl = `${baseUrl}/update-password?token=${rawToken}`;
+
+    await this.mailService.sendPasswordResetEmail({
+      to: admin.email,
+      firstName: admin.firstName,
+      resetUrl,
+      expiresInMinutes: ttlMinutes,
+    });
+
+    return { message };
+  }
+
+  /** Consumes a reset token, stores the new password hash and revokes sessions. */
+  async adminResetPassword(
+    dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    const tokenHash = createHash('sha256').update(dto.token).digest('hex');
+    const admin = await this.adminsService.findByPasswordResetToken(tokenHash);
+
+    if (!admin) {
+      throw new BadRequestException(
+        'This password reset link is invalid or has expired.',
+      );
+    }
+
+    const hashedPassword = await PasswordUtil.hash(
+      dto.newPassword,
+      this.configService.get('app.bcryptRounds'),
+    );
+
+    await this.adminsService.resetPassword(admin.id, hashedPassword);
+
+    return { message: 'Your password has been reset successfully.' };
   }
 
   async adminLogin(
@@ -541,6 +624,23 @@ export class AuthService {
     if (/iPhone|iPad|iPod/i.test(userAgent)) return 'ios';
     if (/Windows|Mac OS X|Linux/i.test(userAgent)) return 'web';
     return 'unknown';
+  }
+
+  /** Fire-and-forget admin push so onboarding never fails because of FCM. */
+  private async notifyAdminsOfNewStudent(user: User): Promise<void> {
+    const name =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+
+    await this.notificationsService.notifyAdmins({
+      title: 'New student onboarded',
+      body: `${name} just created an account (${user.email}).`,
+      type: AdminNotificationType.STUDENT_REGISTERED,
+      data: {
+        type: 'student_registered',
+        userId: user.id,
+      },
+      link: '/students',
+    });
   }
 
   private async generateStudentTokens(
