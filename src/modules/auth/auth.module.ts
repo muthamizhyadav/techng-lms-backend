@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { StudentJwtStrategy } from './strategies/student-jwt.strategy';
 import { AdminJwtStrategy } from './strategies/admin-jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { GoogleAuthGuard } from './strategies/google-auth.guard';
 import { UsersModule } from '@modules/users/users.module';
 import { AdminsModule } from '@modules/admins/admins.module';
 import { NotificationsModule } from '@modules/notifications/notifications.module';
@@ -32,7 +33,13 @@ import { AuthAdminController } from './auth-admin.controller';
     MailModule,
   ],
   controllers: [AuthController, AuthAdminController],
-  providers: [AuthService, StudentJwtStrategy, AdminJwtStrategy, GoogleStrategy],
+  providers: [
+    AuthService,
+    StudentJwtStrategy,
+    AdminJwtStrategy,
+    GoogleStrategy,
+    GoogleAuthGuard,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}

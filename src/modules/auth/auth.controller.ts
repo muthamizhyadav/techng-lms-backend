@@ -24,6 +24,7 @@ import { AuthService, StudentLoginContext } from './auth.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import {
+  ApproveDeviceLoginDto,
   RefreshTokenDto,
   StudentLoginDto,
   StudentRegisterDto,
@@ -33,6 +34,10 @@ import { UserResponseDto } from '../users/dto/user.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
+import {
+  GoogleAuthGuard,
+  OAUTH_NONCE_COOKIE,
+} from './strategies/google-auth.guard';
 
 @ApiTags('🎓 Student Auth')
 @Controller('auth/student')
@@ -102,29 +107,70 @@ export class AuthController {
   @ApiResponse({
     status: 409,
     description:
-      'Account is already logged in on another device. Log out there, or resend the login with logoutOtherDevices=true to take over.',
+      'Account is already logged in on another device. Show the active device, then call POST /auth/student/login/approve with the approvalToken to sign the other device out and continue. Clients that cannot show a prompt may resend the login with logoutOtherDevices=true.',
     schema: {
       example: {
         statusCode: 409,
         code: 'ALREADY_LOGGED_IN',
         message:
-          'You are already logged in on another device. Please log out from that device before logging in again.',
+          'Your account is already active on another device. Sign out of that device to continue here.',
         error: 'Conflict',
         activeSessions: [
           {
             deviceName: 'Chrome on Windows',
             platform: 'web',
+            ipAddress: '203.0.113.24',
             loggedInAt: '2026-10-21T08:55:12.000Z',
             lastActiveAt: '2026-10-21T09:12:44.000Z',
             expiresAt: '2026-10-28T08:55:12.000Z',
           },
         ],
+        approvalToken: 'eyJhbGciOiJIUzI1NiIs...',
+        approvalExpiresInSeconds: 300,
       },
     },
   })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   async login(@Body() dto: StudentLoginDto, @Req() req: Request) {
     return this.authService.studentLogin(dto, this.loginContext(req));
+  }
+
+  // ═══════════════════════════════════════════════════
+  // ║  APPROVE DEVICE TAKEOVER                        ║
+  // ═══════════════════════════════════════════════════
+
+  @Post('login/approve')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Approve signing out the other device and finish logging in on this one',
+  })
+  @ApiBody({ type: ApproveDeviceLoginDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Other device signed out; this device is now logged in',
+    schema: {
+      example: {
+        accessToken: 'eyJhbGciOiJIUzI1NiIs...',
+        refreshToken: 'eyJhbGciOiJIUzI1NiIs...',
+        user: {
+          id: '0f8fad5b-d9cb-469f-a165-70867728950e',
+          email: 'rahul@email.com',
+          firstName: 'Rahul',
+          lastName: 'Kumar',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Approval token missing, expired or issued for another device',
+  })
+  async approveDeviceLogin(
+    @Body() dto: ApproveDeviceLoginDto,
+    @Req() req: Request,
+  ) {
+    return this.authService.approveDeviceLogin(dto, this.loginContext(req));
   }
 
   // ═══════════════════════════════════════════════════
@@ -240,7 +286,7 @@ export class AuthController {
   // ═══════════════════════════════════════════════════
 
   @Get('google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Initiate Google OAuth login' })
   async googleAuth() {
     // Guard redirects to Google
@@ -251,11 +297,49 @@ export class AuthController {
   @ApiOperation({ summary: 'Google OAuth callback' })
   async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
     const user = req.user as any;
+    const frontendUrl = (
+      this.configService.get<string>('google.frontendUrl') ?? ''
+    ).replace(/\/+$/, '');
+
+    const state =
+      typeof req.query.state === 'string' ? req.query.state : undefined;
+    const deviceHint = this.authService.verifyGoogleOAuthState(state);
+    const nonceCookie = req.cookies?.[OAUTH_NONCE_COOKIE];
+
+    // One-time value: clear it before doing anything else.
+    res.clearCookie(OAUTH_NONCE_COOKIE, { path: '/' });
+
+    if (
+      !deviceHint ||
+      !deviceHint.nonce ||
+      typeof nonceCookie !== 'string' ||
+      nonceCookie !== deviceHint.nonce
+    ) {
+      return res.redirect(
+        `${frontendUrl}/auth/callback?error=${encodeURIComponent(
+          'Sign-in could not be verified. Please try again.',
+        )}`,
+      );
+    }
+
     const result = await this.authService.googleLogin(
       user,
       this.loginContext(req),
+      deviceHint,
     );
-    const frontendUrl = this.configService.get<string>('google.frontendUrl');
+
+    if (result.status === 'conflict') {
+      // Keep the approval token out of server logs and referrer headers by
+      // delivering it in the URL fragment, which browsers never send upstream.
+      const payload = Buffer.from(
+        JSON.stringify(result.conflict),
+        'utf8',
+      ).toString('base64url');
+      return res.redirect(
+        `${frontendUrl}/auth/callback#deviceConflict=${payload}`,
+      );
+    }
+
     const params = new URLSearchParams({
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,

@@ -91,6 +91,48 @@ export class StudentLoginDto {
   logoutOtherDevices?: boolean;
 }
 
+/**
+ * Exchanges the short-lived approval token from an ALREADY_LOGGED_IN conflict
+ * for a real session, signing the previously active device out.
+ */
+export class ApproveDeviceLoginDto {
+  @ApiProperty({
+    description:
+      'Short-lived approval token returned with the 409 ALREADY_LOGGED_IN login response',
+  })
+  @IsString()
+  @IsNotEmpty({ message: 'Approval token is required' })
+  approvalToken: string;
+
+  @ApiPropertyOptional({
+    example: 'b1f4c2d0-8a71-4f2e-b6a1-3c9f7d5e2a10',
+    description:
+      'Stable per-device identifier; must match the device that requested the approval',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  deviceId?: string;
+
+  @ApiPropertyOptional({
+    example: 'Chrome on Windows',
+    description: 'Human readable device/browser name',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  deviceName?: string;
+
+  @ApiPropertyOptional({
+    example: 'web',
+    description: 'Client platform (web, android, ios, desktop)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  platform?: string;
+}
+
 export class RefreshTokenDto {
   @ApiProperty({
     example: 'eyJhbGciOiJIUzI1NiIs...',

@@ -18,6 +18,8 @@ import { generateUuid } from '@common/utils/uuid.util';
 import {
   StudentJwtPayload,
   AdminJwtPayload,
+  DeviceApprovalPayload,
+  GoogleOAuthStatePayload,
 } from '@shared/interfaces/jwt-payload.interface';
 import { User, UserSession } from '@modules/users/entities/user.entity';
 import { Admin } from '@modules/admins/entities/admin.entity';
@@ -26,6 +28,7 @@ import { NotificationsService } from '@modules/notifications/notifications.servi
 import { AdminNotificationType } from '@modules/notifications/entities/notification.entity';
 import { MailService } from '@modules/mail/mail.service';
 import {
+  ApproveDeviceLoginDto,
   ForgotPasswordDto,
   RefreshTokenDto,
   ResetPasswordDto,
@@ -33,6 +36,10 @@ import {
   StudentRegisterDto,
 } from './dto/auth.dto';
 import { AdminLoginDto, AdminRegisterDto } from '../admins/dto/admin.dto';
+
+/** How long a student has to approve signing out their other device. */
+const DEVICE_APPROVAL_TTL = '5m';
+const DEVICE_APPROVAL_TTL_SECONDS = 5 * 60;
 
 /** Request metadata used to describe the device a student logs in from. */
 export interface StudentLoginContext {
@@ -58,6 +65,48 @@ export interface StudentSessionResponse {
   expiresAt: Date;
   isCurrent: boolean;
 }
+
+/** Device details safe to show in a login-permission prompt. */
+export interface DeviceSummary {
+  deviceName: string;
+  platform: string;
+  ipAddress: string;
+  loggedInAt: Date;
+  lastActiveAt: Date;
+  expiresAt: Date;
+}
+
+/** Device hint carried through the Google OAuth redirect. */
+export interface GoogleDeviceHint {
+  deviceId?: string;
+  deviceName?: string;
+  platform?: string;
+  /** Set only on verified OAuth state, never supplied by the client. */
+  nonce?: string;
+}
+
+export interface GoogleLoginConflict {
+  approvalToken: string;
+  approvalExpiresInSeconds: number;
+  activeSessions: DeviceSummary[];
+  /**
+   * Device id the approval token is bound to. The browser echoes it back when
+   * approving, which keeps the flow working even if the OAuth state was lost.
+   */
+  deviceId: string;
+}
+
+export type GoogleLoginResult =
+  | {
+      status: 'success';
+      accessToken: string;
+      refreshToken: string;
+      user: User;
+    }
+  | {
+      status: 'conflict';
+      conflict: GoogleLoginConflict;
+    };
 
 @Injectable()
 export class AuthService {
@@ -124,13 +173,65 @@ export class AuthService {
         error: 'Conflict',
         code: 'ALREADY_LOGGED_IN',
         message:
-          'You are already logged in on another device. Please log out from that device before logging in again.',
+          'Your account is already active on another device. Sign out of that device to continue here.',
         activeSessions: otherDeviceSessions.map((session) =>
           this.toDeviceSummary(session),
         ),
+        // Proves the credentials were valid a moment ago, so the student can
+        // approve the takeover without typing their password again.
+        approvalToken: await this.createDeviceApprovalToken(user, device),
+        approvalExpiresInSeconds: DEVICE_APPROVAL_TTL_SECONDS,
       });
     }
 
+    const tokens = await this.createStudentSession(user, device, context);
+    await this.usersService.updateLastLogin(user.id);
+
+    delete (user as any).password;
+    delete (user as any).refreshTokenHash;
+
+    return { ...tokens, user };
+  }
+
+  /**
+   * Completes a login that previously hit the single-device conflict. The
+   * student explicitly agreed to sign out the other device, so the existing
+   * session is replaced by the new one.
+   */
+  async approveDeviceLogin(
+    dto: ApproveDeviceLoginDto,
+    context: StudentLoginContext = {},
+  ): Promise<{ accessToken: string; refreshToken: string; user: User }> {
+    let payload: DeviceApprovalPayload;
+    try {
+      payload = this.jwtService.verify(dto.approvalToken, {
+        secret: this.configService.get('jwt.student.secret'),
+      });
+    } catch {
+      throw new UnauthorizedException(
+        'This sign-in approval has expired. Please sign in again.',
+      );
+    }
+
+    if (payload.type !== 'device-approval') {
+      throw new UnauthorizedException('Invalid approval token');
+    }
+
+    const device = this.resolveDevice(dto, context);
+    if (payload.did && payload.did !== device.deviceId) {
+      throw new UnauthorizedException(
+        'This approval was requested from a different device. Please sign in again.',
+      );
+    }
+
+    const user = await this.usersService.findOne(payload.sub);
+    if (!user.isActive()) {
+      throw new ForbiddenException(
+        'Your account is not active. Please verify your email or contact support.',
+      );
+    }
+
+    // Replacing the session list is what actually signs the other device out.
     const tokens = await this.createStudentSession(user, device, context);
     await this.usersService.updateLastLogin(user.id);
 
@@ -267,7 +368,8 @@ export class AuthService {
       avatar?: string;
     },
     context: StudentLoginContext = {},
-  ): Promise<{ accessToken: string; refreshToken: string; user: User }> {
+    deviceHint: GoogleDeviceHint = {},
+  ): Promise<GoogleLoginResult> {
     let user = await this.usersService.findByGoogleId(profile.googleId);
 
     if (!user) {
@@ -281,19 +383,73 @@ export class AuthService {
       }
     }
 
-    // Google sign-in is a trusted redirect flow, so it takes over the single
-    // active session instead of asking for confirmation.
-    const tokens = await this.createStudentSession(
-      user,
-      this.resolveDevice({}, context),
-      context,
+    const device = this.resolveDevice(deviceHint, context);
+    const activeSessions = await this.usersService.getActiveSessions(user.id);
+    const otherDeviceSessions = activeSessions.filter(
+      (session) => session.deviceId !== device.deviceId,
     );
+
+    // Google sign-in follows exactly the same single-device rule as password
+    // sign-in: the student must approve signing the other device out.
+    if (otherDeviceSessions.length > 0) {
+      return {
+        status: 'conflict',
+        conflict: {
+          approvalToken: await this.createDeviceApprovalToken(user, device),
+          approvalExpiresInSeconds: DEVICE_APPROVAL_TTL_SECONDS,
+          activeSessions: otherDeviceSessions.map((session) =>
+            this.toDeviceSummary(session),
+          ),
+          deviceId: device.deviceId,
+        },
+      };
+    }
+
+    const tokens = await this.createStudentSession(user, device, context);
     await this.usersService.updateLastLogin(user.id);
 
     delete (user as any).password;
     delete (user as any).refreshTokenHash;
 
-    return { ...tokens, user };
+    return { status: 'success', ...tokens, user };
+  }
+
+  /** Signs the device hint into the OAuth `state` parameter. */
+  createGoogleOAuthState(hint: GoogleDeviceHint, nonce: string): string {
+    const payload: GoogleOAuthStatePayload = {
+      type: 'oauth-state',
+      did: hint.deviceId,
+      dn: hint.deviceName,
+      pf: hint.platform,
+      nonce,
+    };
+
+    return this.jwtService.sign(payload, {
+      secret: this.configService.get('jwt.student.secret'),
+      expiresIn: '10m',
+    });
+  }
+
+  /** Verifies the OAuth `state` and returns the device hint it carries. */
+  verifyGoogleOAuthState(state?: string): GoogleDeviceHint | null {
+    if (!state) return null;
+
+    try {
+      const payload = this.jwtService.verify<GoogleOAuthStatePayload>(state, {
+        secret: this.configService.get('jwt.student.secret'),
+      });
+
+      if (payload.type !== 'oauth-state') return null;
+
+      return {
+        deviceId: payload.did,
+        deviceName: payload.dn,
+        platform: payload.pf,
+        nonce: payload.nonce,
+      };
+    } catch {
+      return null;
+    }
   }
 
   async adminRegister(
@@ -551,10 +707,29 @@ export class AuthService {
     return {
       deviceName: session.deviceName,
       platform: session.platform,
+      ipAddress: session.ipAddress,
       loggedInAt: session.loggedInAt,
       lastActiveAt: session.lastActiveAt,
       expiresAt: session.expiresAt,
     };
+  }
+
+  private async createDeviceApprovalToken(
+    user: User,
+    device: ResolvedDevice,
+  ): Promise<string> {
+    const payload: DeviceApprovalPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      type: 'device-approval',
+      did: device.deviceId,
+    };
+
+    return this.jwtService.sign(payload, {
+      secret: this.configService.get('jwt.student.secret'),
+      expiresIn: DEVICE_APPROVAL_TTL,
+    });
   }
 
   private toSessionResponse(
