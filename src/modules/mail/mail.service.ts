@@ -118,7 +118,7 @@ export class MailService implements OnModuleInit {
                 <h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;">Reset your password</h1>
                 <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#334155;">Hi ${name},</p>
                 <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#334155;">
-                  We received a request to reset the password for your TechNG LMS admin account.
+                  We received a request to reset the password for your TechNG LMS account.
                   Click the button below to choose a new password.
                 </p>
                 <p style="margin:0 0 24px;text-align:center;">
@@ -154,7 +154,7 @@ export class MailService implements OnModuleInit {
     const text = [
       `Hi ${options.firstName || 'there'},`,
       '',
-      'We received a request to reset the password for your TechNG LMS admin account.',
+      'We received a request to reset the password for your TechNG LMS account.',
       `Reset your password: ${options.resetUrl}`,
       '',
       `This link expires in ${options.expiresInMinutes} minutes and can only be used once.`,

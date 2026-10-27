@@ -34,6 +34,7 @@ import {
   ResetPasswordDto,
   StudentLoginDto,
   StudentRegisterDto,
+  StudentResetPasswordDto,
 } from './dto/auth.dto';
 import { AdminLoginDto, AdminRegisterDto } from '../admins/dto/admin.dto';
 
@@ -450,6 +451,77 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Sends a single-use password-reset link to a student's email. The response
+   * is intentionally generic so the endpoint cannot be used to enumerate
+   * registered student accounts.
+   */
+  async studentForgotPassword(
+    dto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    const message =
+      'If an account with that email exists, a password reset link has been sent.';
+
+    const user = await this.usersService.findByEmail(dto.email);
+    if (!user) {
+      return { message };
+    }
+
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+    const ttlMinutes =
+      this.configService.get<number>('mail.resetTokenTtlMinutes') ?? 60;
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60_000);
+
+    await this.usersService.setPasswordResetToken(
+      user.id,
+      tokenHash,
+      expiresAt,
+    );
+
+    const baseUrl = (
+      this.configService.get<string>('mail.studentPanelUrl') ??
+      this.configService.get<string>('mail.adminPanelUrl') ??
+      ''
+    ).replace(/\/+$/, '');
+    const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`;
+
+    await this.mailService.sendPasswordResetEmail({
+      to: user.email,
+      firstName: user.firstName,
+      resetUrl,
+      expiresInMinutes: ttlMinutes,
+    });
+
+    return { message };
+  }
+
+  /**
+   * Consumes a student reset token, stores the new password hash and revokes
+   * every device session so a stolen session cannot survive the reset.
+   */
+  async studentResetPassword(
+    dto: StudentResetPasswordDto,
+  ): Promise<{ message: string }> {
+    const tokenHash = createHash('sha256').update(dto.token).digest('hex');
+    const user = await this.usersService.findByPasswordResetToken(tokenHash);
+
+    if (!user) {
+      throw new BadRequestException(
+        'This password reset link is invalid or has expired.',
+      );
+    }
+
+    const hashedPassword = await PasswordUtil.hash(
+      dto.newPassword,
+      this.configService.get('app.bcryptRounds'),
+    );
+
+    await this.usersService.resetPassword(user.id, hashedPassword);
+
+    return { message: 'Your password has been reset successfully.' };
   }
 
   async adminRegister(

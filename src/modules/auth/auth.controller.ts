@@ -25,9 +25,11 @@ import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import {
   ApproveDeviceLoginDto,
+  ForgotPasswordDto,
   RefreshTokenDto,
   StudentLoginDto,
   StudentRegisterDto,
+  StudentResetPasswordDto,
 } from './dto/auth.dto';
 import { User } from '@modules/users/entities/user.entity';
 import { UserResponseDto } from '../users/dto/user.dto';
@@ -171,6 +173,36 @@ export class AuthController {
     @Req() req: Request,
   ) {
     return this.authService.approveDeviceLogin(dto, this.loginContext(req));
+  }
+
+  // ═══════════════════════════════════════════════════
+  // ║  PASSWORD RESET                                 ║
+  // ═══════════════════════════════════════════════════
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Request a student password reset email',
+    description:
+      'Sends a single-use reset link when the email belongs to a student account. Always responds with the same message to prevent account enumeration.',
+  })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({ status: 200, description: 'Reset email requested.' })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.studentForgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reset a student password with an emailed token',
+  })
+  @ApiBody({ type: StudentResetPasswordDto })
+  @ApiResponse({ status: 200, description: 'Password reset successfully.' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired reset token' })
+  async resetPassword(@Body() dto: StudentResetPasswordDto) {
+    return this.authService.studentResetPassword(dto);
   }
 
   // ═══════════════════════════════════════════════════

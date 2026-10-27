@@ -18,5 +18,10 @@ export default registerAs('mail', () => ({
     process.env.ADMIN_PANEL_URL ||
     process.env.FRONTEND_URL ||
     'https://lms.techng.in',
+  // Origin of the student app, used to build the student reset link.
+  studentPanelUrl:
+    process.env.STUDENT_PANEL_URL ||
+    process.env.FRONTEND_URL ||
+    'https://lms.techng.in',
   resetTokenTtlMinutes: parseInt(process.env.MAIL_RESET_TTL_MINUTES, 10) || 60,
 }));

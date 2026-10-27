@@ -287,6 +287,56 @@ export class UsersService implements OnModuleInit {
     await this.userModel.findByIdAndUpdate(id, { deletedAt: new Date() });
   }
 
+  // ═══════════════════════════════════════════════════
+  // ║  PASSWORD RESET                                 ║
+  // ═══════════════════════════════════════════════════
+
+  /** Stores a hashed, single-use password-reset token and its expiry. */
+  async setPasswordResetToken(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId, deletedAt: null },
+      {
+        passwordResetToken: tokenHash,
+        passwordResetExpires: expiresAt,
+      },
+    );
+  }
+
+  /** Finds a student by an unexpired password-reset token hash. */
+  async findByPasswordResetToken(
+    tokenHash: string,
+  ): Promise<UserDocument | null> {
+    return this.userModel.findOne({
+      passwordResetToken: tokenHash,
+      passwordResetExpires: { $gt: new Date() },
+      deletedAt: null,
+    });
+  }
+
+  /**
+   * Stores the new password hash, consumes the reset token and signs the
+   * student out of every device so a stolen session cannot survive a reset.
+   */
+  async resetPassword(
+    userId: string,
+    hashedPassword: string,
+  ): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        refreshTokenHash: null,
+        activeSessions: [],
+      },
+    );
+  }
+
   async updateRefreshToken(
     userId: string,
     refreshToken: string | null,

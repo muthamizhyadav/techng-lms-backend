@@ -52,6 +52,8 @@ export const UserSessionSchema = SchemaFactory.createForClass(UserSession);
       delete ret.refreshTokenHash;
       delete ret.activeSessions;
       delete ret.emailVerificationToken;
+      delete ret.passwordResetToken;
+      delete ret.passwordResetExpires;
       delete ret.phoneOtp;
       delete ret.googleId;
       return ret;
@@ -154,6 +156,12 @@ export class User {
 
   @Prop({ default: null })
   refreshTokenHash: string;
+
+  @Prop({ default: null })
+  passwordResetToken: string;
+
+  @Prop({ type: Date, default: null })
+  passwordResetExpires: Date;
 
   @Prop({ type: [UserSessionSchema], default: [] })
   activeSessions: UserSession[];
