@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { UsersService } from '@modules/users/users.service';
 import { AdminsService } from '@modules/admins/admins.service';
+import { NotificationsService } from '@modules/notifications/notifications.service';
+import { MailService } from '@modules/mail/mail.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -46,6 +48,18 @@ describe('AuthService', () => {
             updateLastLogin: jest.fn(),
             findOne: jest.fn(),
             countAll: jest.fn(),
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: {
+            createAdminNotification: jest.fn(),
+          },
+        },
+        {
+          provide: MailService,
+          useValue: {
+            sendMail: jest.fn(),
           },
         },
       ],

@@ -22,6 +22,7 @@ import { DatabaseModule } from './database/database.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { FreeCoursesModule } from './modules/free-courses/free-courses.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     OrdersModule,
     DashboardModule,
     NotificationsModule,
+    FreeCoursesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
