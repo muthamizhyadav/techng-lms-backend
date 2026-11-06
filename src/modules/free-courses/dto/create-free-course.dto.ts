@@ -50,12 +50,27 @@ export class FreeCourseChapterDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   videoUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  videoThumbnail?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
   duration?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  videoDuration?: string;
 
   @ApiProperty()
   @IsNumber()
@@ -70,6 +85,16 @@ export class FreeCourseChapterDto {
   @IsOptional()
   @IsString()
   documentUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  trainerName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  uploadDate?: string;
 
   @ApiPropertyOptional({ type: [FreeCourseAttachmentDto] })
   @IsOptional()
@@ -119,6 +144,41 @@ export class CreateFreeCourseDto {
   @IsOptional()
   @IsString()
   instructor?: string;
+
+  @ApiPropertyOptional({ example: 'trainer_123' })
+  @IsOptional()
+  @IsString()
+  trainerId?: string;
+
+  @ApiPropertyOptional({ example: 'Monika Sharma' })
+  @IsOptional()
+  @IsString()
+  trainerName?: string;
+
+  @ApiPropertyOptional({ example: 'Lead QA Architect' })
+  @IsOptional()
+  @IsString()
+  trainerDesignation?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  trainerAvatar?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  trainerBio?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  promotionalVideoUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  promotionalVideoDuration?: string;
 
   @ApiProperty({ example: 'Programming' })
   @IsString()

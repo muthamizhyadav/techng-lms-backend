@@ -5,6 +5,10 @@ import {
   FreeCourseSchema,
 } from './entities/free-course.entity';
 import {
+  FreeCourseTrainer,
+  FreeCourseTrainerSchema,
+} from './entities/free-course-trainer.entity';
+import {
   FreeCourseEnrollment,
   FreeCourseEnrollmentSchema,
 } from './entities/free-course-enrollment.entity';
@@ -22,6 +26,7 @@ import { FreeCoursesStudentController } from './free-courses-student.controller'
   imports: [
     MongooseModule.forFeature([
       { name: FreeCourse.name, schema: FreeCourseSchema },
+      { name: FreeCourseTrainer.name, schema: FreeCourseTrainerSchema },
       {
         name: FreeCourseEnrollment.name,
         schema: FreeCourseEnrollmentSchema,

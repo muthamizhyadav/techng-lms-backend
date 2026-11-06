@@ -22,11 +22,16 @@ export interface FreeCourseAttachment {
 export interface FreeCourseChapter {
   _id: string;
   title: string;
+  description?: string;
   videoUrl?: string;
+  videoThumbnail?: string | null;
   duration?: number;
+  videoDuration?: string;
   order: number;
   type?: 'video' | 'document' | 'quiz';
   documentUrl?: string;
+  trainerName?: string;
+  uploadDate?: string;
   attachments?: FreeCourseAttachment[];
 }
 
@@ -70,6 +75,27 @@ export class FreeCourse {
 
   @Prop({ trim: true, default: null })
   instructor: string;
+
+  @Prop({ type: String, ref: 'FreeCourseTrainer', default: null })
+  trainerId: string;
+
+  @Prop({ trim: true, default: null })
+  trainerName: string;
+
+  @Prop({ trim: true, default: 'Lead Trainer' })
+  trainerDesignation: string;
+
+  @Prop({ trim: true, default: null })
+  trainerAvatar: string;
+
+  @Prop({ trim: true, default: '' })
+  trainerBio: string;
+
+  @Prop({ trim: true, default: null })
+  promotionalVideoUrl: string;
+
+  @Prop({ trim: true, default: null })
+  promotionalVideoDuration: string;
 
   @Prop({ required: true, trim: true })
   category: string;
@@ -124,8 +150,11 @@ export class FreeCourse {
           {
             _id: { type: String, default: generateUuid },
             title: { type: String, required: true },
+            description: { type: String, default: '' },
             videoUrl: { type: String, default: '' },
+            videoThumbnail: { type: String, default: null },
             duration: { type: Number, default: 0 },
+            videoDuration: { type: String, default: null },
             order: { type: Number, required: true },
             type: {
               type: String,
@@ -133,6 +162,8 @@ export class FreeCourse {
               default: 'video',
             },
             documentUrl: { type: String, default: null },
+            trainerName: { type: String, default: null },
+            uploadDate: { type: String, default: null },
             attachments: [
               {
                 _id: { type: String, default: generateUuid },
@@ -168,6 +199,7 @@ export class FreeCourse {
 
 export const FreeCourseSchema = SchemaFactory.createForClass(FreeCourse);
 
-FreeCourseSchema.index({ title: 'text', category: 'text', instructor: 'text' });
+FreeCourseSchema.index({ title: 'text', category: 'text', instructor: 'text', trainerName: 'text' });
+FreeCourseSchema.index({ trainerId: 1 });
 FreeCourseSchema.index({ status: 1, deletedAt: 1 });
 

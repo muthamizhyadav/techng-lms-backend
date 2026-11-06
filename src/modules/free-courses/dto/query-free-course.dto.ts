@@ -31,6 +31,16 @@ export class QueryFreeCourseDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  trainerId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  trainerName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   search?: string;
 }
 

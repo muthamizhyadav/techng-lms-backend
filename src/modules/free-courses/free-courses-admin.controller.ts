@@ -42,6 +42,10 @@ import {
   CompleteFreeCourseMultipartDto,
   AbortFreeCourseMultipartDto,
 } from './dto/free-upload.dto';
+import {
+  CreateFreeTrainerDto,
+  UpdateFreeTrainerDto,
+} from './dto/create-free-trainer.dto';
 import { FreeCourseStatus } from './entities/free-course.entity';
 import { UserStatus } from '@shared/enums/role.enum';
 
@@ -70,6 +74,51 @@ export class FreeCoursesAdminController {
   async getStats() {
     return this.adminService.getStats();
   }
+
+  // -------------------------------------------------------------
+  // Trainer Endpoints
+  // -------------------------------------------------------------
+
+  @Get('trainers')
+  @ApiOperation({ summary: 'List all active free course trainers' })
+  async findAllTrainers() {
+    return this.adminService.findAllTrainers();
+  }
+
+  @Get('trainers/:trainerId')
+  @ApiOperation({ summary: 'Get trainer details by ID' })
+  @ApiParam({ name: 'trainerId' })
+  async findTrainerById(@Param('trainerId') trainerId: string) {
+    return this.adminService.findTrainerById(trainerId);
+  }
+
+  @Post('trainers')
+  @ApiOperation({ summary: 'Create a new trainer profile' })
+  async createTrainer(@Body() dto: CreateFreeTrainerDto) {
+    return this.adminService.createTrainer(dto);
+  }
+
+  @Put('trainers/:trainerId')
+  @ApiOperation({ summary: 'Update an existing trainer profile' })
+  @ApiParam({ name: 'trainerId' })
+  async updateTrainer(
+    @Param('trainerId') trainerId: string,
+    @Body() dto: UpdateFreeTrainerDto,
+  ) {
+    return this.adminService.updateTrainer(trainerId, dto);
+  }
+
+  @Delete('trainers/:trainerId')
+  @ApiOperation({ summary: 'Delete a trainer profile' })
+  @ApiParam({ name: 'trainerId' })
+  async deleteTrainer(@Param('trainerId') trainerId: string) {
+    await this.adminService.deleteTrainer(trainerId);
+    return { success: true, message: 'Trainer deleted successfully' };
+  }
+
+  // -------------------------------------------------------------
+  // Student Endpoints
+  // -------------------------------------------------------------
 
   @Get('students')
   @ApiOperation({ summary: 'List all free course students' })

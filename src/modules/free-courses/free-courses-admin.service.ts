@@ -12,6 +12,10 @@ import {
   FreeCourseStatus,
 } from './entities/free-course.entity';
 import {
+  FreeCourseTrainer,
+  FreeCourseTrainerDocument,
+} from './entities/free-course-trainer.entity';
+import {
   FreeCourseEnrollment,
   FreeCourseEnrollmentDocument,
   FreeCourseEnrollmentStatus,
@@ -30,12 +34,18 @@ import {
   QueryFreeStudentDto,
   UpdateFreeStudentDto,
 } from './dto/free-student.dto';
+import {
+  CreateFreeTrainerDto,
+  UpdateFreeTrainerDto,
+} from './dto/create-free-trainer.dto';
 
 @Injectable()
 export class FreeCoursesAdminService {
   constructor(
     @InjectModel(FreeCourse.name)
     private readonly freeCourseModel: Model<FreeCourseDocument>,
+    @InjectModel(FreeCourseTrainer.name)
+    private readonly freeCourseTrainerModel: Model<FreeCourseTrainerDocument>,
     @InjectModel(FreeCourseEnrollment.name)
     private readonly freeCourseEnrollmentModel: Model<FreeCourseEnrollmentDocument>,
     @InjectModel(User.name)
@@ -52,7 +62,7 @@ export class FreeCoursesAdminService {
     page: number;
     limit: number;
   }> {
-    const { page = 1, limit = 10, status, category, search } = query;
+    const { page = 1, limit = 10, status, category, search, trainerId, trainerName } = query;
     const filter: Record<string, unknown> = { deletedAt: null };
 
     if (status) {
@@ -61,6 +71,14 @@ export class FreeCoursesAdminService {
 
     if (category) {
       filter.category = category;
+    }
+
+    if (trainerId) {
+      filter.trainerId = trainerId;
+    }
+
+    if (trainerName) {
+      filter.trainerName = new RegExp(trainerName.trim(), 'i');
     }
 
     if (search && search.trim()) {
@@ -72,6 +90,7 @@ export class FreeCoursesAdminService {
         { title: regex },
         { category: regex },
         { instructor: regex },
+        { trainerName: regex },
         { description: regex },
       ];
     }
@@ -205,6 +224,7 @@ export class FreeCoursesAdminService {
     archived: number;
     totalStudents: number;
     categories: number;
+    trainers: number;
   }> {
     const [
       total,
@@ -214,6 +234,7 @@ export class FreeCoursesAdminService {
       archived,
       totalStudents,
       categories,
+      trainers,
     ] = await Promise.all([
       this.freeCourseModel.countDocuments({ deletedAt: null }),
       this.freeCourseModel.countDocuments({
@@ -236,6 +257,7 @@ export class FreeCoursesAdminService {
         status: FreeCourseEnrollmentStatus.ACTIVE,
       }),
       this.freeCourseModel.distinct('category', { deletedAt: null }),
+      this.freeCourseTrainerModel.countDocuments({ deletedAt: null }),
     ]);
 
     return {
@@ -246,7 +268,56 @@ export class FreeCoursesAdminService {
       archived,
       totalStudents,
       categories: categories.length,
+      trainers,
     };
+  }
+
+  // -------------------------------------------------------------
+  // Free Course Trainer Management
+  // -------------------------------------------------------------
+
+  async findAllTrainers(): Promise<FreeCourseTrainer[]> {
+    return this.freeCourseTrainerModel
+      .find({ deletedAt: null })
+      .sort({ order: 1, createdAt: -1 })
+      .exec();
+  }
+
+  async findTrainerById(id: string): Promise<FreeCourseTrainerDocument> {
+    const trainer = await this.freeCourseTrainerModel.findOne({
+      _id: id,
+      deletedAt: null,
+    });
+    if (!trainer) {
+      throw new NotFoundException(`Trainer with ID "${id}" not found`);
+    }
+    return trainer;
+  }
+
+  async createTrainer(dto: CreateFreeTrainerDto): Promise<FreeCourseTrainer> {
+    const saved = await this.freeCourseTrainerModel.create(dto);
+    return saved.toJSON() as FreeCourseTrainer;
+  }
+
+  async updateTrainer(
+    id: string,
+    dto: UpdateFreeTrainerDto,
+  ): Promise<FreeCourseTrainer> {
+    await this.findTrainerById(id);
+    const updated = await this.freeCourseTrainerModel.findOneAndUpdate(
+      { _id: id, deletedAt: null },
+      dto,
+      { new: true },
+    );
+    return updated!.toJSON() as FreeCourseTrainer;
+  }
+
+  async deleteTrainer(id: string): Promise<void> {
+    await this.findTrainerById(id);
+    await this.freeCourseTrainerModel.findOneAndUpdate(
+      { _id: id, deletedAt: null },
+      { deletedAt: new Date(), isActive: false },
+    );
   }
 
   async getCourseStudents(courseId: string): Promise<any[]> {

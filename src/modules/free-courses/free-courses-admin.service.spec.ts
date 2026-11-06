@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { FreeCoursesAdminService } from './free-courses-admin.service';
 import { FreeCourse, FreeCourseStatus } from './entities/free-course.entity';
+import { FreeCourseTrainer } from './entities/free-course-trainer.entity';
 import {
   FreeCourseEnrollment,
   FreeCourseEnrollmentStatus,
@@ -101,6 +102,21 @@ describe('FreeCoursesAdminService', () => {
     }),
   };
 
+  const mockTrainerModel: any = {
+    find: jest.fn().mockReturnThis(),
+    sort: jest.fn().mockReturnThis(),
+    exec: jest.fn().mockResolvedValue([]),
+    countDocuments: jest.fn().mockResolvedValue(1),
+    findOne: jest.fn(),
+    create: jest.fn().mockImplementation((dto) => ({
+      ...dto,
+      _id: 'trainer-1',
+      id: 'trainer-1',
+      toJSON: () => ({ ...dto, id: 'trainer-1' }),
+    })),
+    findOneAndUpdate: jest.fn().mockResolvedValue({ _id: 'trainer-1', toJSON: () => ({ id: 'trainer-1' }) }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -108,6 +124,10 @@ describe('FreeCoursesAdminService', () => {
         {
           provide: getModelToken(FreeCourse.name),
           useValue: mockCourseModel,
+        },
+        {
+          provide: getModelToken(FreeCourseTrainer.name),
+          useValue: mockTrainerModel,
         },
         {
           provide: getModelToken(FreeCourseEnrollment.name),
