@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
   PutObjectCommand,
+  GetObjectCommand,
   CreateMultipartUploadCommand,
   UploadPartCommand,
   CompleteMultipartUploadCommand,
@@ -215,14 +216,58 @@ export class FreeCourseStorageService {
   }
 
   getPublicUrl(key: string): string {
-    if (this.publicBaseUrl) {
+    if (
+      this.publicBaseUrl &&
+      this.publicBaseUrl.startsWith('http') &&
+      !this.publicBaseUrl.includes('<HASH>')
+    ) {
       const encodedKey = key
         .split('/')
         .map((segment) => this.encodePathSegment(segment))
         .join('/');
       return `${this.publicBaseUrl}/${encodedKey}`;
     }
-    return key;
+    return `/api/v1/uploads/stream?key=${encodeURIComponent(key)}`;
+  }
+
+  async getSignedGetUrl(
+    key: string,
+    expiresIn = 86400,
+  ): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+    });
+    return getSignedUrl(this.client, command, { expiresIn });
+  }
+
+  async getObjectStream(
+    key: string,
+    range?: string,
+  ): Promise<{
+    stream: NodeJS.ReadableStream;
+    contentLength?: number;
+    contentRange?: string;
+    contentType?: string;
+    acceptRanges?: string;
+    statusCode: number;
+  }> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      Range: range,
+    });
+
+    const response = await this.client.send(command);
+
+    return {
+      stream: response.Body as unknown as NodeJS.ReadableStream,
+      contentLength: response.ContentLength,
+      contentRange: response.ContentRange,
+      contentType: response.ContentType || 'video/mp4',
+      acceptRanges: response.AcceptRanges || 'bytes',
+      statusCode: range ? 206 : 200,
+    };
   }
 
   async getPresignedPutUrl(

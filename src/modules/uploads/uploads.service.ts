@@ -159,4 +159,16 @@ export class UploadsService {
   async abortMultipart(dto: AbortMultipartUploadDto): Promise<void> {
     await this.r2Service.abortMultipartUpload(dto.key, dto.uploadId);
   }
+
+  async streamObject(key: string, range?: string) {
+    return this.r2Service.getObjectStream(key, range);
+  }
+
+  async getViewUrl(key: string): Promise<string> {
+    const publicUrl = this.r2Service.getPublicUrl(key);
+    if (publicUrl && publicUrl.startsWith('http') && !publicUrl.includes('<HASH>')) {
+      return publicUrl;
+    }
+    return this.r2Service.getSignedGetUrl(key);
+  }
 }

@@ -50,6 +50,18 @@ export class EnrollmentsController {
     return { isEnrolled };
   }
 
+  @Get('course/:courseId/curriculum')
+  @ApiOperation({ summary: 'Get course curriculum for enrolled student by course ID' })
+  @ApiParam({ name: 'courseId', description: 'Course UUID' })
+  @ApiResponse({ status: 200, description: 'Curriculum data with progress' })
+  @ApiResponse({ status: 403, description: 'User has not purchased this course' })
+  async getCurriculumByCourse(
+    @CurrentUser() user: User,
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+  ) {
+    return this.enrollmentsService.getCurriculumByCourseId(user.id, courseId);
+  }
+
   @Get(':enrollmentId/curriculum')
   @ApiOperation({ summary: 'Get course curriculum with enrollment progress' })
   @ApiParam({ name: 'enrollmentId', description: 'Enrollment UUID' })

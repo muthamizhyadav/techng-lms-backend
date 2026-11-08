@@ -95,19 +95,25 @@ export class FreeCoursesStudentService {
   }
 
   async getAvailableCourses(studentId: string): Promise<any[]> {
-    const [courses, enrollments] = await Promise.all([
-      this.freeCourseModel
-        .find({
-          status: { $in: [FreeCourseStatus.PUBLISHED, FreeCourseStatus.ACTIVE] },
-          deletedAt: null,
-        })
-        .sort({ createdAt: -1 })
-        .exec(),
-      this.freeCourseEnrollmentModel
-        .find({ studentId })
-        .select('courseId status progress')
-        .exec(),
-    ]);
+    // Only courses specifically assigned to this student are accessible
+    const enrollments = await this.freeCourseEnrollmentModel
+      .find({ studentId })
+      .select('courseId status progress')
+      .exec();
+
+    if (enrollments.length === 0) {
+      return [];
+    }
+
+    const assignedCourseIds = enrollments.map((e) => e.courseId);
+    const courses = await this.freeCourseModel
+      .find({
+        _id: { $in: assignedCourseIds },
+        status: { $in: [FreeCourseStatus.PUBLISHED, FreeCourseStatus.ACTIVE] },
+        deletedAt: null,
+      })
+      .sort({ createdAt: -1 })
+      .exec();
 
     const enrollmentMap = new Map(
       enrollments.map((e) => [e.courseId, e]),
@@ -125,6 +131,11 @@ export class FreeCoursesStudentService {
         title: course.title,
         description: course.description,
         instructor: course.instructor,
+        trainerId: course.trainerId || null,
+        trainerName: course.trainerName || course.instructor,
+        trainerDesignation: course.trainerDesignation || null,
+        trainerAvatar: course.trainerAvatar || null,
+        trainerBio: course.trainerBio || null,
         category: course.category,
         level: course.level,
         duration: course.duration,
@@ -151,22 +162,16 @@ export class FreeCoursesStudentService {
       throw new NotFoundException(`Free Course with ID "${courseId}" not found`);
     }
 
+    // Strict Access Control: Free courses require explicit Admin assignment
     const enrollment = await this.freeCourseEnrollmentModel.findOne({
       studentId,
       courseId,
     });
 
     if (!enrollment) {
-      // If course is published/active, we can auto-enroll or require assignment.
-      // Per requirements, free course students have access to courses assigned or made available to them.
-      if (
-        course.status !== FreeCourseStatus.PUBLISHED &&
-        course.status !== FreeCourseStatus.ACTIVE
-      ) {
-        throw new ForbiddenException(
-          'This free course is currently not published or active.',
-        );
-      }
+      throw new ForbiddenException(
+        'Access Denied: You do not have access to this free course. Free courses are restricted and must be specifically assigned to your account by TechNG Administration.',
+      );
     }
 
     const chapterProgressMap = enrollment
@@ -245,29 +250,15 @@ export class FreeCoursesStudentService {
     courseId: string,
     dto: UpdateFreeProgressDto,
   ): Promise<any> {
-    let enrollment = await this.freeCourseEnrollmentModel.findOne({
+    const enrollment = await this.freeCourseEnrollmentModel.findOne({
       studentId,
       courseId,
     });
 
     if (!enrollment) {
-      // Auto-enroll if course is active/published
-      const course = await this.freeCourseModel.findOne({
-        _id: courseId,
-        deletedAt: null,
-      });
-      if (!course) {
-        throw new NotFoundException(`Free Course with ID "${courseId}" not found`);
-      }
-      enrollment = await this.freeCourseEnrollmentModel.create({
-        studentId,
-        courseId,
-        status: FreeCourseEnrollmentStatus.ACTIVE,
-        progress: 0,
-        completedChapters: [],
-        currentChapterId: dto.chapterId,
-        enrolledAt: new Date(),
-      });
+      throw new ForbiddenException(
+        'Access Denied: You do not have access to this free course. Free courses require admin assignment.',
+      );
     }
 
     const { chapterId, watchTime, lastPosition } = dto;
@@ -320,21 +311,15 @@ export class FreeCoursesStudentService {
       throw new NotFoundException(`Free Course with ID "${courseId}" not found`);
     }
 
-    let enrollment = await this.freeCourseEnrollmentModel.findOne({
+    const enrollment = await this.freeCourseEnrollmentModel.findOne({
       studentId,
       courseId,
     });
 
     if (!enrollment) {
-      enrollment = await this.freeCourseEnrollmentModel.create({
-        studentId,
-        courseId,
-        status: FreeCourseEnrollmentStatus.ACTIVE,
-        progress: 0,
-        completedChapters: [],
-        currentChapterId: chapterId,
-        enrolledAt: new Date(),
-      });
+      throw new ForbiddenException(
+        'Access Denied: You do not have access to this free course. Free courses require admin assignment.',
+      );
     }
 
     const completedSet = new Set(enrollment.completedChapters || []);

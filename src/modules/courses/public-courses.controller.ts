@@ -73,9 +73,25 @@ export class PublicCoursesController {
   @ApiResponse({ status: 404, description: 'Course not found' })
   async getPublicCourseById(@Param('id', ParseUUIDPipe) id: string) {
     const course = await this.coursesService.findOne(id);
+    const rawModules = withCurriculumIds(course.modules || []);
+    // Sanitize modules for public view: strip protected lesson video URLs
+    const sanitizedModules = rawModules.map((mod: any) => ({
+      ...mod,
+      lessons: (mod.lessons || []).map((lesson: any) => {
+        if (lesson.isPreview) {
+          return lesson;
+        }
+        const { videoUrl, ...safeLesson } = lesson;
+        return {
+          ...safeLesson,
+          hasVideo: Boolean(videoUrl),
+        };
+      }),
+    }));
+
     return {
       ...course.toJSON(),
-      modules: withCurriculumIds(course.modules || []),
+      modules: sanitizedModules,
     };
   }
 }

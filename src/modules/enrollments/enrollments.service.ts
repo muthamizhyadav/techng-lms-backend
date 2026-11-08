@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -135,6 +136,20 @@ export class EnrollmentsService {
       currentLessonId: enrollment.currentLessonId || null,
       overallProgress: enrollment.progress,
     };
+  }
+
+  async getCurriculumByCourseId(userId: string, courseId: string) {
+    const enrollment = await this.enrollmentModel.findOne({
+      userId,
+      courseId,
+      status: EnrollmentStatus.ACTIVE,
+    });
+    if (!enrollment) {
+      throw new ForbiddenException(
+        'Access Denied: You must purchase this course to access lessons and curriculum.',
+      );
+    }
+    return this.getCurriculum(userId, enrollment._id.toString());
   }
 
   async updateProgress(

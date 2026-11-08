@@ -7,7 +7,10 @@ import {
   Post,
   Query,
   UseGuards,
+  Headers,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -170,5 +173,47 @@ export class UploadsController {
       uploadId,
     });
     return { message: 'Multipart upload aborted' };
+  }
+
+  @Get('stream')
+  @ApiOperation({
+    summary: 'Stream video or asset with HTTP Range and 206 Partial Content support',
+  })
+  @ApiQuery({ name: 'key', required: true, description: 'Storage object key' })
+  async stream(
+    @Query('key') key: string,
+    @Headers('range') range: string | undefined,
+    @Res() res: Response,
+  ) {
+    if (!key) {
+      return res.status(400).send('Object key is required');
+    }
+    try {
+      const data = await this.uploadsService.streamObject(key, range);
+      res.status(data.statusCode);
+      if (data.contentType) res.setHeader('Content-Type', data.contentType);
+      if (data.acceptRanges) res.setHeader('Accept-Ranges', data.acceptRanges);
+      if (data.contentLength) res.setHeader('Content-Length', data.contentLength);
+      if (data.contentRange) res.setHeader('Content-Range', data.contentRange);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Headers', 'Range, Accept-Ranges, Content-Range');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      (data.stream as any).pipe(res);
+    } catch (err: any) {
+      return res
+        .status(err?.$metadata?.httpStatusCode || 404)
+        .send(err?.message || 'Failed to stream object');
+    }
+  }
+
+  @Get('view-url')
+  @ApiOperation({
+    summary: 'Get signed/public view URL for a storage key',
+  })
+  @ApiQuery({ name: 'key', required: true, description: 'Storage object key' })
+  async getViewUrl(@Query('key') key: string) {
+    if (!key) return { url: '' };
+    const url = await this.uploadsService.getViewUrl(key);
+    return { url };
   }
 }
