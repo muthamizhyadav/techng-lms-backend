@@ -16,6 +16,10 @@ import {
   User,
   UserSchema,
 } from '@modules/users/entities/user.entity';
+import {
+  Admin,
+  AdminSchema,
+} from '@modules/admins/entities/admin.entity';
 import { FreeCoursesAdminService } from './free-courses-admin.service';
 import { FreeCoursesStudentService } from './free-courses-student.service';
 import { FreeCourseStorageService } from './storage/free-course-storage.service';
@@ -32,6 +36,7 @@ import { FreeCoursesStudentController } from './free-courses-student.controller'
         schema: FreeCourseEnrollmentSchema,
       },
       { name: User.name, schema: UserSchema },
+      { name: Admin.name, schema: AdminSchema },
     ]),
   ],
   controllers: [

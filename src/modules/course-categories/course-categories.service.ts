@@ -18,6 +18,10 @@ import {
   Course,
   CourseDocument,
 } from '@modules/courses/entities/course.entity';
+import {
+  FreeCourse,
+  FreeCourseDocument,
+} from '../free-courses/entities/free-course.entity';
 
 export interface CourseCategoryQuery {
   page: number;
@@ -36,6 +40,8 @@ export class CourseCategoriesService {
     private readonly categoryModel: Model<CourseCategoryDocument>,
     @InjectModel(Course.name)
     private readonly courseModel: Model<CourseDocument>,
+    @InjectModel(FreeCourse.name)
+    private readonly freeCourseModel: Model<FreeCourseDocument>,
   ) {}
 
   private slugify(input: string): string {
@@ -93,15 +99,24 @@ export class CourseCategoriesService {
 
     const names = categories.map((category) => category.name);
 
-    const counts = await this.courseModel.aggregate<{
-      _id: string;
-      count: number;
-    }>([
-      { $match: { category: { $in: names }, deletedAt: null } },
-      { $group: { _id: '$category', count: { $sum: 1 } } },
+    const [paidCounts, freeCounts] = await Promise.all([
+      this.courseModel.aggregate<{ _id: string; count: number }>([
+        { $match: { category: { $in: names }, deletedAt: null } },
+        { $group: { _id: '$category', count: { $sum: 1 } } },
+      ]),
+      this.freeCourseModel.aggregate<{ _id: string; count: number }>([
+        { $match: { category: { $in: names }, deletedAt: null } },
+        { $group: { _id: '$category', count: { $sum: 1 } } },
+      ]),
     ]);
 
-    const countMap = new Map(counts.map((count) => [count._id, count.count]));
+    const countMap = new Map<string, number>();
+    for (const c of paidCounts) {
+      countMap.set(c._id, (countMap.get(c._id) ?? 0) + c.count);
+    }
+    for (const c of freeCounts) {
+      countMap.set(c._id, (countMap.get(c._id) ?? 0) + c.count);
+    }
 
     return categories.map((category) => {
       const json = category.toJSON();
@@ -277,9 +292,14 @@ export class CourseCategoriesService {
       );
     }
 
-    if (category.coursesCount > 0) {
+    const freeCourseCount = await this.freeCourseModel.countDocuments({
+      category: category.name,
+      deletedAt: null,
+    });
+
+    if (category.coursesCount > 0 || freeCourseCount > 0) {
       throw new ConflictException(
-        'Cannot delete a category that has courses assigned to it',
+        'Cannot delete a category that has courses assigned to it. Please reassign the courses first.',
       );
     }
 

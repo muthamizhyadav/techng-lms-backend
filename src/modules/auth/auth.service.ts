@@ -27,6 +27,7 @@ import { AdminRole } from '@shared/enums/user-status.enum';
 import { NotificationsService } from '@modules/notifications/notifications.service';
 import { AdminNotificationType } from '@modules/notifications/entities/notification.entity';
 import { MailService } from '@modules/mail/mail.service';
+import { LoginActivityService } from '@modules/login-activity/login-activity.service';
 import {
   ApproveDeviceLoginDto,
   ForgotPasswordDto,
@@ -118,6 +119,7 @@ export class AuthService {
     private readonly adminsService: AdminsService,
     private readonly notificationsService: NotificationsService,
     private readonly mailService: MailService,
+    private readonly loginActivityService: LoginActivityService,
   ) {}
 
   async studentRegister(
@@ -188,6 +190,18 @@ export class AuthService {
     const tokens = await this.createStudentSession(user, device, context);
     await this.usersService.updateLastLogin(user.id);
 
+    // Record login activity
+    void this.loginActivityService.recordLogin({
+      userId: user.id,
+      userRole: 'student',
+      email: user.email,
+      name: `${user.firstName} ${user.lastName || ''}`.trim(),
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      device: device.deviceName,
+      status: 'success',
+    });
+
     delete (user as any).password;
     delete (user as any).refreshTokenHash;
 
@@ -235,6 +249,18 @@ export class AuthService {
     // Replacing the session list is what actually signs the other device out.
     const tokens = await this.createStudentSession(user, device, context);
     await this.usersService.updateLastLogin(user.id);
+
+    // Record login activity
+    void this.loginActivityService.recordLogin({
+      userId: user.id,
+      userRole: 'student',
+      email: user.email,
+      name: `${user.firstName} ${user.lastName || ''}`.trim(),
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      device: device.deviceName,
+      status: 'success',
+    });
 
     delete (user as any).password;
     delete (user as any).refreshTokenHash;
@@ -409,6 +435,18 @@ export class AuthService {
     const tokens = await this.createStudentSession(user, device, context);
     await this.usersService.updateLastLogin(user.id);
 
+    // Record login activity
+    void this.loginActivityService.recordLogin({
+      userId: user.id,
+      userRole: 'student',
+      email: user.email,
+      name: `${user.firstName} ${user.lastName || ''}`.trim(),
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      device: device.deviceName,
+      status: 'success',
+    });
+
     delete (user as any).password;
     delete (user as any).refreshTokenHash;
 
@@ -551,6 +589,7 @@ export class AuthService {
       sub: admin.id,
       email: admin.email,
       role: admin.role,
+      username: (admin as any).username,
       type: 'admin',
     });
 
@@ -631,13 +670,33 @@ export class AuthService {
   async adminLogin(
     dto: AdminLoginDto,
     ipAddress?: string,
+    userAgent?: string,
   ): Promise<{ accessToken: string; refreshToken: string; admin: Admin }> {
-    const admin = await this.adminsService.findByEmailWithPassword(dto.email);
+    const admin = await this.adminsService.findByIdentifierWithPassword(dto.email);
     if (!admin) {
-      throw new UnauthorizedException('Invalid email or password');
+      void this.loginActivityService.recordLogin({
+        userId: 'unknown',
+        userRole: 'unknown',
+        email: dto.email,
+        ipAddress,
+        userAgent,
+        status: 'failed',
+        failureReason: 'Account not found',
+      });
+      throw new UnauthorizedException('Invalid email, username, or password');
     }
 
     if (!admin.isActive()) {
+      void this.loginActivityService.recordLogin({
+        userId: admin.id,
+        userRole: admin.role,
+        email: admin.email,
+        name: admin.fullName,
+        ipAddress,
+        userAgent,
+        status: 'failed',
+        failureReason: 'Account suspended',
+      });
       throw new ForbiddenException(
         'Your admin account is suspended. Contact Super Admin.',
       );
@@ -648,18 +707,108 @@ export class AuthService {
       admin.password,
     );
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid email or password');
+      void this.loginActivityService.recordLogin({
+        userId: admin.id,
+        userRole: admin.role,
+        email: admin.email,
+        name: admin.fullName,
+        ipAddress,
+        userAgent,
+        status: 'failed',
+        failureReason: 'Invalid password',
+      });
+      throw new UnauthorizedException('Invalid email, username, or password');
+    }
+
+    let trainerSessionId: string | undefined = undefined;
+
+    // -------------------------------------------------------------
+    // Single-device restriction: Strictly for Trainer accounts
+    // -------------------------------------------------------------
+    if (admin.role === AdminRole.TRAINER) {
+      const incomingDeviceId =
+        dto.deviceId ||
+        `device_${createHash('md5')
+          .update((ipAddress || '') + (userAgent || ''))
+          .digest('hex')
+          .slice(0, 12)}`;
+      const now = new Date();
+      const hasActiveSession = Boolean(
+        admin.activeSessionId &&
+        admin.activeSessionExpiresAt &&
+        new Date(admin.activeSessionExpiresAt) > now,
+      );
+
+      if (
+        hasActiveSession &&
+        admin.activeDeviceId &&
+        admin.activeDeviceId !== incomingDeviceId
+      ) {
+        void this.loginActivityService.recordLogin({
+          userId: admin.id,
+          userRole: 'trainer',
+          email: admin.email,
+          name: admin.fullName,
+          ipAddress,
+          userAgent,
+          device: dto.deviceName || 'Secondary Device',
+          status: 'conflict_blocked',
+          failureReason: 'Trainer already active on another device',
+        });
+
+        throw new ConflictException({
+          statusCode: 409,
+          error: 'Conflict',
+          code: 'TRAINER_ALREADY_LOGGED_IN',
+          message:
+            'Your account is already active on another device. Please log out from your existing session before logging in again.',
+          activeSession: {
+            deviceId: admin.activeDeviceId,
+            deviceName: admin.activeDeviceName || 'Active Session',
+            loggedInAt: admin.activeSessionLoggedInAt || admin.lastLoginAt,
+          },
+        });
+      }
+
+      // Provision fresh session id
+      trainerSessionId = generateUuid();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await this.adminsService.setTrainerActiveSession(admin.id, {
+        sessionId: trainerSessionId,
+        deviceId: incomingDeviceId,
+        deviceName: dto.deviceName || 'Web Browser',
+        ipAddress,
+        expiresAt,
+      });
     }
 
     const tokens = await this.generateAdminTokens({
       sub: admin.id,
       email: admin.email,
       role: admin.role,
+      username: (admin as any).username,
+      sessionId: trainerSessionId,
       type: 'admin',
     });
 
     await this.adminsService.updateRefreshToken(admin.id, tokens.refreshToken);
-    await this.adminsService.updateLastLogin(admin.id, ipAddress);
+    await this.adminsService.updateLastLogin(
+      admin.id,
+      ipAddress,
+      dto.deviceName || undefined,
+    );
+
+    // Record successful login
+    void this.loginActivityService.recordLogin({
+      userId: admin.id,
+      userRole: admin.role,
+      email: admin.email,
+      name: admin.fullName,
+      ipAddress,
+      userAgent,
+      device: dto.deviceName || 'Web Browser',
+      status: 'success',
+    });
 
     delete (admin as any).password;
     delete (admin as any).refreshTokenHash;
@@ -696,6 +845,8 @@ export class AuthService {
       sub: payload.sub,
       email: payload.email,
       role: payload.role,
+      username: payload.username,
+      sessionId: payload.sessionId,
       type: 'admin',
     });
 
@@ -708,6 +859,14 @@ export class AuthService {
   }
 
   async adminLogout(adminId: string): Promise<void> {
+    try {
+      const admin = await this.adminsService.findOne(adminId);
+      if (admin && admin.role === AdminRole.TRAINER) {
+        await this.adminsService.clearTrainerActiveSession(adminId);
+      }
+    } catch {
+      // Best-effort
+    }
     await this.adminsService.updateRefreshToken(adminId, null);
   }
 

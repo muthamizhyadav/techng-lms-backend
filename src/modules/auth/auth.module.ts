@@ -12,6 +12,7 @@ import { UsersModule } from '@modules/users/users.module';
 import { AdminsModule } from '@modules/admins/admins.module';
 import { NotificationsModule } from '@modules/notifications/notifications.module';
 import { MailModule } from '@modules/mail/mail.module';
+import { LoginActivityModule } from '@modules/login-activity/login-activity.module';
 import { AuthAdminController } from './auth-admin.controller';
 
 @Module({
@@ -31,6 +32,7 @@ import { AuthAdminController } from './auth-admin.controller';
     AdminsModule,
     NotificationsModule,
     MailModule,
+    LoginActivityModule,
   ],
   controllers: [AuthController, AuthAdminController],
   providers: [

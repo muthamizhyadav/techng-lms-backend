@@ -26,6 +26,9 @@ import {
 } from '@nestjs/swagger';
 import { CourseCategoriesService } from './course-categories.service';
 import { JwtAdminGuard } from '@common/guards/jwt-admin.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
+import { AdminRole } from '@shared/enums/user-status.enum';
 import { CurrentAdmin } from '@common/decorators/current-admin.decorator';
 import { Admin } from '@modules/admins/entities/admin.entity';
 import {
@@ -36,6 +39,9 @@ import {
 
 @ApiTags('🏷️ Course Categories')
 @Controller('course-categories')
+@UseGuards(JwtAdminGuard, RolesGuard)
+@Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+@ApiBearerAuth('admin-access-token')
 export class CourseCategoriesController {
   constructor(
     private readonly courseCategoriesService: CourseCategoriesService,

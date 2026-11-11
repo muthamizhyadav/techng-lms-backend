@@ -177,8 +177,17 @@ export class AdminsService implements OnModuleInit {
   }
 
   async findByEmailWithPassword(email: string): Promise<AdminDocument | null> {
+    return this.findByIdentifierWithPassword(email);
+  }
+
+  async findByIdentifierWithPassword(identifier: string): Promise<AdminDocument | null> {
+    if (!identifier) return null;
+    const clean = identifier.toLowerCase().trim();
     return this.adminModel.findOne({
-      email: normalizeEmail(email),
+      $or: [
+        { email: clean },
+        { username: clean },
+      ],
       deletedAt: null,
     });
   }
@@ -409,14 +418,55 @@ export class AdminsService implements OnModuleInit {
     return PasswordUtil.compare(refreshToken, admin.refreshTokenHash);
   }
 
-  async updateLastLogin(adminId: string, ipAddress?: string): Promise<void> {
+  async updateLastLogin(
+    adminId: string,
+    ipAddress?: string,
+    device?: string,
+    browser?: string,
+  ): Promise<void> {
     await this.adminModel.findByIdAndUpdate(adminId, {
       $set: {
         lastLoginAt: new Date(),
         lastActiveAt: new Date(),
         lastLoginIp: ipAddress || null,
+        ...(device ? { lastLoginDevice: device } : {}),
+        ...(browser ? { lastLoginBrowser: browser } : {}),
       },
       $inc: { loginCount: 1 },
+    });
+  }
+
+  async setTrainerActiveSession(
+    adminId: string,
+    session: {
+      sessionId: string;
+      deviceId: string;
+      deviceName: string;
+      ipAddress?: string;
+      expiresAt: Date;
+    },
+  ): Promise<void> {
+    await this.adminModel.findByIdAndUpdate(adminId, {
+      $set: {
+        activeSessionId: session.sessionId,
+        activeDeviceId: session.deviceId,
+        activeDeviceName: session.deviceName,
+        activeSessionIp: session.ipAddress || null,
+        activeSessionExpiresAt: session.expiresAt,
+        activeSessionLoggedInAt: new Date(),
+      },
+    });
+  }
+
+  async clearTrainerActiveSession(adminId: string): Promise<void> {
+    await this.adminModel.findByIdAndUpdate(adminId, {
+      $set: {
+        activeSessionId: null,
+        activeDeviceId: null,
+        activeDeviceName: null,
+        activeSessionIp: null,
+        activeSessionExpiresAt: null,
+      },
     });
   }
 

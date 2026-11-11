@@ -9,6 +9,7 @@ import {
   HttpStatus,
   UseGuards,
   Ip,
+  Headers,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -184,8 +185,12 @@ export class AuthAdminController {
   @ApiResponse({ status: 401, description: 'Invalid email or password' })
   @ApiResponse({ status: 403, description: 'Admin account suspended' })
   @ApiResponse({ status: 400, description: 'Validation failed' })
-  async login(@Body() dto: AdminLoginDto, @Ip() ipAddress: string) {
-    return this.authService.adminLogin(dto, ipAddress);
+  async login(
+    @Body() dto: AdminLoginDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent?: string,
+  ) {
+    return this.authService.adminLogin(dto, ipAddress, userAgent);
   }
 
   // ═══════════════════════════════════════════════════

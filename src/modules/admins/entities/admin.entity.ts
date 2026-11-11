@@ -37,6 +37,12 @@ export class Admin {
   @Prop({ required: true, unique: true, lowercase: true, trim: true })
   email: string;
 
+  @Prop({ trim: true, sparse: true, unique: true, lowercase: true, default: null })
+  username?: string;
+
+  @Prop({ type: String, default: null })
+  trainerProfileId?: string;
+
   @Prop({ required: true })
   password: string;
 
@@ -89,6 +95,30 @@ export class Admin {
 
   @Prop({ default: null })
   lastLoginIp: string;
+
+  @Prop({ default: null })
+  lastLoginDevice?: string;
+
+  @Prop({ default: null })
+  lastLoginBrowser?: string;
+
+  @Prop({ default: null })
+  activeSessionId?: string;
+
+  @Prop({ default: null })
+  activeDeviceId?: string;
+
+  @Prop({ default: null })
+  activeDeviceName?: string;
+
+  @Prop({ default: null })
+  activeSessionIp?: string;
+
+  @Prop({ type: Date, default: null })
+  activeSessionExpiresAt?: Date;
+
+  @Prop({ type: Date, default: null })
+  activeSessionLoggedInAt?: Date;
 
   @Prop({ default: null })
   refreshTokenHash: string;

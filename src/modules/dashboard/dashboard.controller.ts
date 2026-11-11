@@ -7,6 +7,9 @@ import {
 } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAdminGuard } from '@common/guards/jwt-admin.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
+import { AdminRole } from '@shared/enums/user-status.enum';
 
 @ApiTags('📊 Admin Dashboard')
 @Controller('dashboard')
@@ -14,7 +17,13 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('overview')
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(
+    AdminRole.SUPER_ADMIN,
+    AdminRole.ADMIN,
+    AdminRole.SUPPORT,
+    AdminRole.FINANCE,
+  )
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({
     summary: 'Get dashboard overview (Admin only)',

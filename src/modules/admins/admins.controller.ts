@@ -50,7 +50,8 @@ export class AdminsController {
   // ═══════════════════════════════════════════════════
 
   @Get()
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({
     summary: 'List all admins',
@@ -84,7 +85,8 @@ export class AdminsController {
   // ═══════════════════════════════════════════════════
 
   @Get(':id')
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({ summary: 'Get admin by ID' })
   @ApiParam({
@@ -155,7 +157,8 @@ export class AdminsController {
   // ═══════════════════════════════════════════════════
 
   @Patch(':id')
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({
     summary: 'Update admin profile',

@@ -46,6 +46,8 @@ export interface AdminJwtPayload {
   sub: string;
   email: string;
   role: string;
+  username?: string;
+  sessionId?: string;
   type: 'admin';
   iat?: number;
   exp?: number;

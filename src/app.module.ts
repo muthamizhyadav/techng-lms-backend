@@ -23,6 +23,8 @@ import { UploadsModule } from './modules/uploads/uploads.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { FreeCoursesModule } from './modules/free-courses/free-courses.module';
+import { MarqueeModule } from './modules/marquee/marquee.module';
+import { LoginActivityModule } from './modules/login-activity/login-activity.module';
 
 @Module({
   imports: [
@@ -53,6 +55,8 @@ import { FreeCoursesModule } from './modules/free-courses/free-courses.module';
     DashboardModule,
     NotificationsModule,
     FreeCoursesModule,
+    MarqueeModule,
+    LoginActivityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

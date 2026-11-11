@@ -9,10 +9,15 @@ import {
   Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { FreeCourseStatus } from '../entities/free-course.entity';
 
 export class FreeCourseAttachmentDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -38,6 +43,11 @@ export class FreeCourseAttachmentDto {
 }
 
 export class FreeCourseChapterDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -105,6 +115,11 @@ export class FreeCourseChapterDto {
 }
 
 export class FreeCourseModuleDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -233,7 +248,29 @@ export class CreateFreeCourseDto {
   @ValidateNested({ each: true })
   @Type(() => FreeCourseModuleDto)
   modules?: FreeCourseModuleDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  _id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  createdAt?: any;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  updatedAt?: any;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  __v?: any;
 }
 
-export class UpdateFreeCourseDto extends CreateFreeCourseDto {}
+export class UpdateFreeCourseDto extends PartialType(CreateFreeCourseDto) {}
 

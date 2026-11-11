@@ -3,6 +3,7 @@ export enum AdminRole {
   SUPER_ADMIN = 'super_admin',
   SUPPORT = 'support',
   FINANCE = 'finance',
+  TRAINER = 'trainer',
 }
 
 export enum AdminStatus {

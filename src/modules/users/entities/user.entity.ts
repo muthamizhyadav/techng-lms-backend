@@ -169,6 +169,15 @@ export class User {
   @Prop({ type: Date, default: null })
   lastLoginAt: Date;
 
+  @Prop({ default: null })
+  lastLoginIp?: string;
+
+  @Prop({ default: null })
+  lastLoginDevice?: string;
+
+  @Prop({ default: null })
+  lastLoginBrowser?: string;
+
   @Prop({ type: Number, default: 0 })
   profileCompletionPercentage: number;
 

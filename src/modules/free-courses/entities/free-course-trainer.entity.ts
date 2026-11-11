@@ -31,6 +31,12 @@ export class FreeCourseTrainer {
   @Prop({ required: true, trim: true })
   name: string;
 
+  @Prop({ trim: true, sparse: true, default: null })
+  username: string;
+
+  @Prop({ type: String, default: null })
+  adminId: string;
+
   @Prop({ trim: true, default: null })
   email: string;
 

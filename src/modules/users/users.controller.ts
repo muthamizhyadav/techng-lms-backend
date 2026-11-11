@@ -26,6 +26,9 @@ import {
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { JwtAdminGuard } from '@common/guards/jwt-admin.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
+import { AdminRole } from '@shared/enums/user-status.enum';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { User } from './entities/user.entity';
 import { UserStatus } from '@shared/enums/role.enum';
@@ -43,7 +46,8 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({
     summary: 'List all students (Admin only)',
@@ -79,7 +83,8 @@ export class UsersController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({ summary: 'Get student by ID (Admin only)' })
   @ApiParam({
@@ -98,7 +103,8 @@ export class UsersController {
   }
 
   @Post()
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiBearerAuth('admin-access-token')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create student account (Admin only)' })
@@ -114,7 +120,8 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({ summary: 'Update student details (Admin only)' })
   @ApiParam({ name: 'id', description: 'Student UUID' })
@@ -134,7 +141,8 @@ export class UsersController {
   }
 
   @Patch(':id/status')
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({
     summary: 'Update student status (Admin only)',
@@ -248,7 +256,8 @@ export class UsersController {
   }
 
   @Get('stats/overview')
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiBearerAuth('admin-access-token')
   @ApiOperation({
     summary: 'Get student statistics (Admin only)',
@@ -273,7 +282,8 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAdminGuard)
+  @UseGuards(JwtAdminGuard, RolesGuard)
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiBearerAuth('admin-access-token')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete student (Admin only)' })

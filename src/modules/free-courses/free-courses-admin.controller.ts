@@ -21,8 +21,11 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAdminGuard } from '@common/guards/jwt-admin.guard';
+import { RolesGuard } from '@common/guards/roles.guard';
+import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentAdmin } from '@common/decorators/current-admin.decorator';
 import { Admin } from '@modules/admins/entities/admin.entity';
+import { AdminRole } from '@shared/enums/user-status.enum';
 import { FreeCoursesAdminService } from './free-courses-admin.service';
 import { FreeCourseStorageService } from './storage/free-course-storage.service';
 import {
@@ -45,13 +48,15 @@ import {
 import {
   CreateFreeTrainerDto,
   UpdateFreeTrainerDto,
+  ResetTrainerCredentialsDto,
+  UpdateTrainerStatusDto,
 } from './dto/create-free-trainer.dto';
 import { FreeCourseStatus } from './entities/free-course.entity';
 import { UserStatus } from '@shared/enums/role.enum';
 
 @ApiTags('🎁 Free Courses (Admin)')
 @Controller('free-courses/admin')
-@UseGuards(JwtAdminGuard)
+@UseGuards(JwtAdminGuard, RolesGuard)
 @ApiBearerAuth('admin-access-token')
 export class FreeCoursesAdminController {
   constructor(
@@ -64,28 +69,32 @@ export class FreeCoursesAdminController {
   // -------------------------------------------------------------
 
   @Get()
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({ summary: 'List all free courses with filtering & pagination' })
   async findAll(@Query() query: QueryFreeCourseDto) {
     return this.adminService.findAll(query);
   }
 
   @Get('stats')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({ summary: 'Get summary stats for free courses and students' })
   async getStats() {
     return this.adminService.getStats();
   }
 
   // -------------------------------------------------------------
-  // Trainer Endpoints
+  // Trainer Endpoints (Admin & Super Admin ONLY)
   // -------------------------------------------------------------
 
   @Get('trainers')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'List all active free course trainers' })
   async findAllTrainers() {
     return this.adminService.findAllTrainers();
   }
 
   @Get('trainers/:trainerId')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'Get trainer details by ID' })
   @ApiParam({ name: 'trainerId' })
   async findTrainerById(@Param('trainerId') trainerId: string) {
@@ -93,12 +102,14 @@ export class FreeCoursesAdminController {
   }
 
   @Post('trainers')
-  @ApiOperation({ summary: 'Create a new trainer profile' })
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @ApiOperation({ summary: 'Create a new trainer profile and login account' })
   async createTrainer(@Body() dto: CreateFreeTrainerDto) {
     return this.adminService.createTrainer(dto);
   }
 
   @Put('trainers/:trainerId')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'Update an existing trainer profile' })
   @ApiParam({ name: 'trainerId' })
   async updateTrainer(
@@ -108,25 +119,58 @@ export class FreeCoursesAdminController {
     return this.adminService.updateTrainer(trainerId, dto);
   }
 
+  @Patch('trainers/:trainerId/credentials')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @ApiOperation({ summary: 'Update or reset trainer login credentials (username / password)' })
+  @ApiParam({ name: 'trainerId' })
+  async resetTrainerCredentials(
+    @Param('trainerId') trainerId: string,
+    @Body() dto: ResetTrainerCredentialsDto,
+  ) {
+    return this.adminService.resetTrainerCredentials(trainerId, dto);
+  }
+
+  @Patch('trainers/:trainerId/status')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @ApiOperation({ summary: 'Activate or deactivate trainer account' })
+  @ApiParam({ name: 'trainerId' })
+  async updateTrainerStatus(
+    @Param('trainerId') trainerId: string,
+    @Body() dto: UpdateTrainerStatusDto,
+  ) {
+    return this.adminService.updateTrainerStatus(trainerId, dto.isActive);
+  }
+
   @Delete('trainers/:trainerId')
-  @ApiOperation({ summary: 'Delete a trainer profile' })
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @ApiOperation({ summary: 'Delete a trainer profile and deactivate account' })
   @ApiParam({ name: 'trainerId' })
   async deleteTrainer(@Param('trainerId') trainerId: string) {
     await this.adminService.deleteTrainer(trainerId);
     return { success: true, message: 'Trainer deleted successfully' };
   }
 
+  @Post('trainers/:trainerId/terminate-session')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
+  @ApiOperation({ summary: 'Terminate active single-device login session for a trainer' })
+  @ApiParam({ name: 'trainerId' })
+  async terminateTrainerSession(@Param('trainerId') trainerId: string) {
+    return this.adminService.terminateTrainerSession(trainerId);
+  }
+
   // -------------------------------------------------------------
-  // Student Endpoints
+  // Student Endpoints (Admin & Super Admin ONLY)
   // -------------------------------------------------------------
 
   @Get('students')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'List all free course students' })
   async findAllStudents(@Query() query: QueryFreeStudentDto) {
     return this.adminService.findAllStudents(query);
   }
 
   @Post('students')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'Create a student login account for free courses' })
   async createStudent(
     @Body() dto: CreateFreeStudentDto,
@@ -136,6 +180,7 @@ export class FreeCoursesAdminController {
   }
 
   @Get('students/:studentId')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'Get free course student details and course progress' })
   @ApiParam({ name: 'studentId' })
   async findStudentById(@Param('studentId') studentId: string) {
@@ -143,6 +188,7 @@ export class FreeCoursesAdminController {
   }
 
   @Patch('students/:studentId')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'Update free course student details' })
   @ApiParam({ name: 'studentId' })
   async updateStudent(
@@ -153,6 +199,7 @@ export class FreeCoursesAdminController {
   }
 
   @Patch('students/:studentId/status')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'Update free course student status (active/suspended/inactive)' })
   @ApiParam({ name: 'studentId' })
   async updateStudentStatus(
@@ -164,6 +211,7 @@ export class FreeCoursesAdminController {
   }
 
   @Post('students/:studentId/reset-password')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'Reset password for a free course student' })
   @ApiParam({ name: 'studentId' })
   async resetStudentPassword(
@@ -175,6 +223,7 @@ export class FreeCoursesAdminController {
   }
 
   @Post('students/:studentId/assign-courses')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'Assign free courses to a student' })
   @ApiParam({ name: 'studentId' })
   async assignCoursesToStudent(
@@ -191,6 +240,7 @@ export class FreeCoursesAdminController {
   }
 
   @Delete('students/:studentId/courses/:courseId')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'Unassign a free course from a student' })
   @ApiParam({ name: 'studentId' })
   @ApiParam({ name: 'courseId' })
@@ -203,6 +253,7 @@ export class FreeCoursesAdminController {
   }
 
   @Get(':id')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({ summary: 'Get a single free course by ID' })
   @ApiParam({ name: 'id' })
   async findOne(@Param('id') id: string) {
@@ -210,15 +261,25 @@ export class FreeCoursesAdminController {
   }
 
   @Post()
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({ summary: 'Create a new free course' })
   async create(
     @Body() dto: CreateFreeCourseDto,
     @CurrentAdmin() admin: Admin,
   ) {
+    if (admin?.role === AdminRole.TRAINER) {
+      if (!dto.trainerId && (admin as any).trainerProfileId) {
+        dto.trainerId = (admin as any).trainerProfileId;
+      }
+      if (!dto.trainerName) {
+        dto.trainerName = admin.fullName || `${admin.firstName} ${admin.lastName || ''}`.trim();
+      }
+    }
     return this.adminService.create(dto, admin?.id || 'admin');
   }
 
   @Put(':id')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({ summary: 'Update an existing free course' })
   @ApiParam({ name: 'id' })
   async update(
@@ -230,6 +291,7 @@ export class FreeCoursesAdminController {
   }
 
   @Patch(':id/status')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({ summary: 'Update status of free course (draft, published, active, archived)' })
   @ApiParam({ name: 'id' })
   async updateStatus(
@@ -242,6 +304,7 @@ export class FreeCoursesAdminController {
   }
 
   @Delete(':id')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({ summary: 'Delete (soft delete) a free course' })
   @ApiParam({ name: 'id' })
   async remove(@Param('id') id: string) {
@@ -250,6 +313,7 @@ export class FreeCoursesAdminController {
   }
 
   @Get(':id/students')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({ summary: 'Get list of students enrolled in this free course with their progress' })
   @ApiParam({ name: 'id' })
   async getCourseStudents(@Param('id') id: string) {
@@ -257,10 +321,11 @@ export class FreeCoursesAdminController {
   }
 
   // -------------------------------------------------------------
-  // Dedicated Free Courses S3 Uploads
+  // Dedicated Free Courses S3 Uploads (Trainers & Admins)
   // -------------------------------------------------------------
 
   @Post('uploads/presign')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({
     summary: 'Get S3 presigned PUT URL for free course asset',
     description:
@@ -295,6 +360,7 @@ export class FreeCoursesAdminController {
   }
 
   @Post('uploads/multipart')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({
     summary: 'Initialize multipart upload on S3 for large free course videos',
   })
@@ -327,6 +393,7 @@ export class FreeCoursesAdminController {
   }
 
   @Get('uploads/multipart/:uploadId/parts/:partNumber/presign')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({
     summary: 'Get presigned URL for a multipart part for free courses',
   })
@@ -347,6 +414,7 @@ export class FreeCoursesAdminController {
   }
 
   @Post('uploads/multipart/complete')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({ summary: 'Complete multipart upload for free course video' })
   async completeMultipart(@Body() dto: CompleteFreeCourseMultipartDto) {
     await this.storageService.completeMultipartUpload(
@@ -362,6 +430,7 @@ export class FreeCoursesAdminController {
   }
 
   @Post('uploads/multipart/abort')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.TRAINER)
   @ApiOperation({ summary: 'Abort multipart upload for free course video' })
   async abortMultipart(@Body() dto: AbortFreeCourseMultipartDto) {
     await this.storageService.abortMultipartUpload(dto.key, dto.uploadId);

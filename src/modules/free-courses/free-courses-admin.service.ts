@@ -21,6 +21,8 @@ import {
   FreeCourseEnrollmentStatus,
 } from './entities/free-course-enrollment.entity';
 import { User, UserDocument } from '@modules/users/entities/user.entity';
+import { Admin, AdminDocument } from '@modules/admins/entities/admin.entity';
+import { AdminRole, AdminStatus } from '@shared/enums/user-status.enum';
 import { UserRole, UserStatus } from '@shared/enums/role.enum';
 import { PasswordUtil } from '@common/utils/password.util';
 import { generateUuid } from '@common/utils/uuid.util';
@@ -37,6 +39,8 @@ import {
 import {
   CreateFreeTrainerDto,
   UpdateFreeTrainerDto,
+  ResetTrainerCredentialsDto,
+  UpdateTrainerStatusDto,
 } from './dto/create-free-trainer.dto';
 
 @Injectable()
@@ -50,6 +54,8 @@ export class FreeCoursesAdminService {
     private readonly freeCourseEnrollmentModel: Model<FreeCourseEnrollmentDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(Admin.name)
+    private readonly adminModel: Model<AdminDocument>,
   ) {}
 
   // -------------------------------------------------------------
@@ -123,25 +129,41 @@ export class FreeCoursesAdminService {
     dto: CreateFreeCourseDto,
     adminId: string,
   ): Promise<FreeCourse> {
-    const modulesWithIds = (dto.modules || []).map((m, mIdx) => ({
-      ...m,
-      _id: m._id || generateUuid(),
-      order: m.order ?? mIdx + 1,
-      chapters: (m.chapters || []).map((c, cIdx) => ({
-        ...c,
-        _id: c._id || generateUuid(),
-        order: c.order ?? cIdx + 1,
-        attachments: (c.attachments || []).map((att) => ({
-          ...att,
-          _id: att._id || generateUuid(),
-        })),
-      })),
-    }));
+    const modulesWithIds = (dto.modules || []).map((m, mIdx) => {
+      const mId = m._id || (m as any).id || generateUuid();
+      return {
+        ...m,
+        _id: mId,
+        id: mId,
+        order: m.order ?? mIdx + 1,
+        chapters: (m.chapters || []).map((c, cIdx) => {
+          const cId = c._id || (c as any).id || generateUuid();
+          return {
+            ...c,
+            _id: cId,
+            id: cId,
+            order: c.order ?? cIdx + 1,
+            attachments: (c.attachments || []).map((att) => {
+              const attId = att._id || (att as any).id || generateUuid();
+              return {
+                ...att,
+                _id: attId,
+                id: attId,
+              };
+            }),
+          };
+        }),
+      };
+    });
 
-    const attachmentsWithIds = (dto.attachments || []).map((att) => ({
-      ...att,
-      _id: att._id || generateUuid(),
-    }));
+    const attachmentsWithIds = (dto.attachments || []).map((att) => {
+      const attId = att._id || (att as any).id || generateUuid();
+      return {
+        ...att,
+        _id: attId,
+        id: attId,
+      };
+    });
 
     const payload = {
       ...dto,
@@ -162,25 +184,41 @@ export class FreeCoursesAdminService {
   ): Promise<FreeCourse> {
     await this.findOne(id);
 
-    const modulesWithIds = (dto.modules || []).map((m, mIdx) => ({
-      ...m,
-      _id: m._id || generateUuid(),
-      order: m.order ?? mIdx + 1,
-      chapters: (m.chapters || []).map((c, cIdx) => ({
-        ...c,
-        _id: c._id || generateUuid(),
-        order: c.order ?? cIdx + 1,
-        attachments: (c.attachments || []).map((att) => ({
-          ...att,
-          _id: att._id || generateUuid(),
-        })),
-      })),
-    }));
+    const modulesWithIds = (dto.modules || []).map((m, mIdx) => {
+      const mId = m._id || (m as any).id || generateUuid();
+      return {
+        ...m,
+        _id: mId,
+        id: mId,
+        order: m.order ?? mIdx + 1,
+        chapters: (m.chapters || []).map((c, cIdx) => {
+          const cId = c._id || (c as any).id || generateUuid();
+          return {
+            ...c,
+            _id: cId,
+            id: cId,
+            order: c.order ?? cIdx + 1,
+            attachments: (c.attachments || []).map((att) => {
+              const attId = att._id || (att as any).id || generateUuid();
+              return {
+                ...att,
+                _id: attId,
+                id: attId,
+              };
+            }),
+          };
+        }),
+      };
+    });
 
-    const attachmentsWithIds = (dto.attachments || []).map((att) => ({
-      ...att,
-      _id: att._id || generateUuid(),
-    }));
+    const attachmentsWithIds = (dto.attachments || []).map((att) => {
+      const attId = att._id || (att as any).id || generateUuid();
+      return {
+        ...att,
+        _id: attId,
+        id: attId,
+      };
+    });
 
     const updated = await this.freeCourseModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
@@ -276,11 +314,61 @@ export class FreeCoursesAdminService {
   // Free Course Trainer Management
   // -------------------------------------------------------------
 
-  async findAllTrainers(): Promise<FreeCourseTrainer[]> {
-    return this.freeCourseTrainerModel
+  async findAllTrainers(): Promise<any[]> {
+    const trainers = await this.freeCourseTrainerModel
       .find({ deletedAt: null })
       .sort({ order: 1, createdAt: -1 })
       .exec();
+
+    const [courses, admins] = await Promise.all([
+      this.freeCourseModel
+        .find({ deletedAt: null })
+        .select('trainerId trainerName')
+        .exec(),
+      this.adminModel
+        .find({ deletedAt: null, role: AdminRole.TRAINER })
+        .select('username email lastLoginAt lastLoginIp lastLoginDevice lastLoginBrowser activeSessionId activeDeviceId activeDeviceName activeSessionExpiresAt activeSessionLoggedInAt')
+        .exec(),
+    ]);
+
+    const adminMap = new Map<string, any>();
+    for (const a of admins) {
+      if ((a as any).username) adminMap.set((a as any).username.toLowerCase(), a);
+      if (a.email) adminMap.set(a.email.toLowerCase(), a);
+      if (a.id) adminMap.set(a.id, a);
+    }
+
+    return trainers.map((t) => {
+      const json = t.toJSON ? t.toJSON() : (t as any);
+      const count = courses.filter(
+        (c) =>
+          c.trainerId === t._id ||
+          (c.trainerName && t.name && c.trainerName.toLowerCase() === t.name.toLowerCase()),
+      ).length;
+
+      const linkedAdmin =
+        (t.username && adminMap.get(t.username.toLowerCase())) ||
+        (t.email && adminMap.get(t.email.toLowerCase())) ||
+        (t.adminId && adminMap.get(t.adminId));
+
+      const hasActiveSession = Boolean(
+        linkedAdmin?.activeSessionId &&
+        linkedAdmin?.activeSessionExpiresAt &&
+        new Date(linkedAdmin.activeSessionExpiresAt) > new Date(),
+      );
+
+      return {
+        ...json,
+        coursesCount: count,
+        lastLoginAt: linkedAdmin?.lastLoginAt || null,
+        lastLoginIp: linkedAdmin?.lastLoginIp || null,
+        lastLoginDevice: linkedAdmin?.lastLoginDevice || null,
+        lastLoginBrowser: linkedAdmin?.lastLoginBrowser || null,
+        hasActiveSession,
+        activeDeviceName: linkedAdmin?.activeDeviceName || null,
+        activeSessionLoggedInAt: linkedAdmin?.activeSessionLoggedInAt || null,
+      };
+    });
   }
 
   async findTrainerById(id: string): Promise<FreeCourseTrainerDocument> {
@@ -294,30 +382,278 @@ export class FreeCoursesAdminService {
     return trainer;
   }
 
-  async createTrainer(dto: CreateFreeTrainerDto): Promise<FreeCourseTrainer> {
-    const saved = await this.freeCourseTrainerModel.create(dto);
-    return saved.toJSON() as FreeCourseTrainer;
+  async createTrainer(dto: CreateFreeTrainerDto): Promise<any> {
+    const rawUsername = (
+      dto.username ||
+      dto.email?.split('@')[0] ||
+      dto.name.toLowerCase().replace(/[^a-z0-9]/g, '_')
+    )
+      .trim()
+      .toLowerCase();
+
+    // Check if username is already in use
+    const existingAdminByUsername = await this.adminModel.findOne({
+      username: rawUsername,
+      deletedAt: null,
+    });
+    const existingTrainerByUsername = await this.freeCourseTrainerModel.findOne({
+      username: rawUsername,
+      deletedAt: null,
+    });
+    if (existingAdminByUsername || existingTrainerByUsername) {
+      throw new ConflictException(
+        `Username "${rawUsername}" is already assigned to another account`,
+      );
+    }
+
+    const rawEmail = (
+      dto.email || `${rawUsername}@trainers.techng.in`
+    )
+      .trim()
+      .toLowerCase();
+
+    // Check if email is in use
+    const existingAdminByEmail = await this.adminModel.findOne({
+      email: rawEmail,
+      deletedAt: null,
+    });
+    if (existingAdminByEmail) {
+      throw new ConflictException(`Email "${rawEmail}" is already registered`);
+    }
+
+    // Set secure password
+    const plainPassword =
+      dto.password?.trim() ||
+      `Trainer@${Math.floor(100000 + Math.random() * 900000)}`;
+    const hashedPassword = await PasswordUtil.hash(plainPassword);
+
+    // 1. Create Free Course Trainer Profile
+    const trainer = await this.freeCourseTrainerModel.create({
+      ...dto,
+      username: rawUsername,
+      email: rawEmail,
+      isActive: dto.isActive !== false,
+    });
+
+    // 2. Create Admin Auth Account with role 'trainer'
+    const names = dto.name.trim().split(' ');
+    const firstName = names[0] || dto.name;
+    const lastName = names.slice(1).join(' ') || '';
+
+    const admin = await this.adminModel.create({
+      _id: generateUuid(),
+      username: rawUsername,
+      email: rawEmail,
+      password: hashedPassword,
+      firstName,
+      lastName,
+      phone: dto.phone || null,
+      avatar: dto.avatar || null,
+      role: AdminRole.TRAINER,
+      status: dto.isActive !== false ? AdminStatus.ACTIVE : AdminStatus.INACTIVE,
+      designation: dto.designation || 'Lead Trainer',
+      bio: dto.bio || '',
+      trainerProfileId: trainer._id,
+      permissions: [
+        'free_course.create',
+        'free_course.edit',
+        'free_course.delete',
+        'free_course.upload',
+      ],
+    });
+
+    trainer.adminId = admin._id;
+    await trainer.save();
+
+    const result = trainer.toJSON();
+    return {
+      ...result,
+      temporaryPassword: plainPassword,
+    };
   }
 
   async updateTrainer(
     id: string,
     dto: UpdateFreeTrainerDto,
-  ): Promise<FreeCourseTrainer> {
-    await this.findTrainerById(id);
+  ): Promise<any> {
+    const trainer = await this.findTrainerById(id);
+
+    if (dto.username && dto.username.toLowerCase() !== trainer.username?.toLowerCase()) {
+      const cleanUsername = dto.username.toLowerCase().trim();
+      const existing = await this.adminModel.findOne({
+        username: cleanUsername,
+        _id: { $ne: trainer.adminId },
+        deletedAt: null,
+      });
+      if (existing) {
+        throw new ConflictException(`Username "${cleanUsername}" is already taken`);
+      }
+    }
+
+    if (dto.email && dto.email.toLowerCase() !== trainer.email?.toLowerCase()) {
+      const cleanEmail = dto.email.toLowerCase().trim();
+      const existing = await this.adminModel.findOne({
+        email: cleanEmail,
+        _id: { $ne: trainer.adminId },
+        deletedAt: null,
+      });
+      if (existing) {
+        throw new ConflictException(`Email "${cleanEmail}" is already registered`);
+      }
+    }
+
     const updated = await this.freeCourseTrainerModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
       dto,
       { new: true },
     );
-    return updated!.toJSON() as FreeCourseTrainer;
+
+    // Sync admin record if linked
+    if (trainer.adminId || trainer.username || trainer.email) {
+      const adminFilter = trainer.adminId
+        ? { _id: trainer.adminId }
+        : { $or: [{ username: trainer.username }, { email: trainer.email }] };
+
+      const names = (dto.name || trainer.name).trim().split(' ');
+      const patch: Record<string, unknown> = {
+        firstName: names[0],
+        lastName: names.slice(1).join(' ') || '',
+      };
+      if (dto.username) patch.username = dto.username.toLowerCase().trim();
+      if (dto.email) patch.email = dto.email.toLowerCase().trim();
+      if (dto.phone !== undefined) patch.phone = dto.phone;
+      if (dto.avatar !== undefined) patch.avatar = dto.avatar;
+      if (dto.designation !== undefined) patch.designation = dto.designation;
+      if (dto.bio !== undefined) patch.bio = dto.bio;
+      if (dto.isActive !== undefined) {
+        patch.status = dto.isActive ? AdminStatus.ACTIVE : AdminStatus.INACTIVE;
+      }
+
+      await this.adminModel.updateOne(adminFilter, patch);
+    }
+
+    return updated!.toJSON();
+  }
+
+  async resetTrainerCredentials(
+    id: string,
+    dto: ResetTrainerCredentialsDto,
+  ): Promise<{ success: boolean; message: string }> {
+    const trainer = await this.findTrainerById(id);
+    const admin = await this.adminModel.findOne({
+      $or: [
+        { _id: trainer.adminId },
+        { trainerProfileId: id },
+        { username: trainer.username },
+        { email: trainer.email },
+      ],
+      deletedAt: null,
+    });
+
+    if (!admin) {
+      throw new NotFoundException('Corresponding trainer auth account not found');
+    }
+
+    if (dto.username) {
+      const cleanUsername = dto.username.toLowerCase().trim();
+      const existing = await this.adminModel.findOne({
+        username: cleanUsername,
+        _id: { $ne: admin._id },
+        deletedAt: null,
+      });
+      if (existing) {
+        throw new ConflictException(`Username "${cleanUsername}" is already in use`);
+      }
+      admin.username = cleanUsername;
+      trainer.username = cleanUsername;
+      await trainer.save();
+    }
+
+    if (dto.password) {
+      admin.password = await PasswordUtil.hash(dto.password.trim());
+    }
+
+    await admin.save();
+    return { success: true, message: 'Trainer credentials updated successfully' };
+  }
+
+  async updateTrainerStatus(
+    id: string,
+    isActive: boolean,
+  ): Promise<{ success: boolean; message: string }> {
+    const trainer = await this.findTrainerById(id);
+    trainer.isActive = isActive;
+    await trainer.save();
+
+    await this.adminModel.updateOne(
+      {
+        $or: [
+          { _id: trainer.adminId },
+          { trainerProfileId: id },
+          { username: trainer.username },
+          { email: trainer.email },
+        ],
+      },
+      {
+        status: isActive ? AdminStatus.ACTIVE : AdminStatus.INACTIVE,
+      },
+    );
+
+    return {
+      success: true,
+      message: `Trainer account ${isActive ? 'activated' : 'deactivated'} successfully`,
+    };
   }
 
   async deleteTrainer(id: string): Promise<void> {
-    await this.findTrainerById(id);
+    const trainer = await this.findTrainerById(id);
     await this.freeCourseTrainerModel.findOneAndUpdate(
       { _id: id, deletedAt: null },
       { deletedAt: new Date(), isActive: false },
     );
+
+    // Deactivate admin account
+    await this.adminModel.updateOne(
+      {
+        $or: [
+          { _id: trainer.adminId },
+          { trainerProfileId: id },
+          { username: trainer.username },
+          { email: trainer.email },
+        ],
+      },
+      {
+        status: AdminStatus.INACTIVE,
+        deletedAt: new Date(),
+      },
+    );
+  }
+
+  async terminateTrainerSession(id: string): Promise<{ success: boolean; message: string }> {
+    const trainer = await this.findTrainerById(id);
+    await this.adminModel.updateOne(
+      {
+        $or: [
+          { _id: trainer.adminId },
+          { trainerProfileId: id },
+          { username: trainer.username },
+          { email: trainer.email },
+        ],
+      },
+      {
+        $set: {
+          activeSessionId: null,
+          activeDeviceId: null,
+          activeDeviceName: null,
+          activeSessionIp: null,
+          activeSessionExpiresAt: null,
+        },
+      },
+    );
+    return {
+      success: true,
+      message: `Active session for trainer "${trainer.name}" has been terminated successfully.`,
+    };
   }
 
   async getCourseStudents(courseId: string): Promise<any[]> {

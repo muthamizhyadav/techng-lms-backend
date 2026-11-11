@@ -149,16 +149,28 @@ export class UpdateAdminDto extends PartialType(
 export class AdminLoginDto {
   @ApiProperty({
     example: 'admin@techng.in',
-    description: 'Admin email address',
+    description: 'Admin/Trainer email address or username',
   })
-  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsString({ message: 'Please provide a valid email or username' })
+  @MinLength(3, { message: 'Email or username must be at least 3 characters' })
+  @MaxLength(255)
   email: string;
 
   @ApiProperty({ example: 'Admin@123', description: 'Account password' })
   @IsString()
-  @MinLength(8)
+  @MinLength(6)
   @MaxLength(50)
   password: string;
+
+  @ApiPropertyOptional({ example: 'dev_browser_uuid' })
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
+
+  @ApiPropertyOptional({ example: 'Chrome on Windows' })
+  @IsOptional()
+  @IsString()
+  deviceName?: string;
 }
 
 export class AdminRegisterDto extends CreateAdminDto {}
